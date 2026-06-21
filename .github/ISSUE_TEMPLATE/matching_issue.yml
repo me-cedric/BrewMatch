@@ -1,0 +1,54 @@
+name: Matching issue
+description: Report incorrect cask matching
+title: "match: "
+labels: ["matching"]
+body:
+  - type: input
+    id: app_name
+    attributes:
+      label: App name
+      placeholder: Firefox.app
+    validations:
+      required: true
+  - type: input
+    id: bundle_identifier
+    attributes:
+      label: Bundle identifier
+      placeholder: org.mozilla.firefox
+    validations:
+      required: true
+  - type: input
+    id: path
+    attributes:
+      label: Path (optional)
+      placeholder: /Applications/Firefox.app
+  - type: input
+    id: expected_cask
+    attributes:
+      label: Expected cask
+      placeholder: firefox
+    validations:
+      required: true
+  - type: input
+    id: actual_candidate
+    attributes:
+      label: Actual candidate
+      placeholder: firefox-developer-edition
+  - type: dropdown
+    id: confidence
+    attributes:
+      label: Confidence
+      options:
+        - high
+        - medium
+        - low
+        - none
+        - ambiguous
+    validations:
+      required: true
+  - type: textarea
+    id: json
+    attributes:
+      label: Sanitized JSON snippet
+      description: Remove private paths, user names, or other sensitive details before sharing.
+      render: json

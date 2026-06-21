@@ -3,6 +3,11 @@ import Foundation
 enum BrewMatchCLI {
     static func main() throws {
         let options = try CLIOptions.parse(Array(CommandLine.arguments.dropFirst()))
+        if options.command == "version" {
+            print(BrewMatchVersion.display)
+            return
+        }
+
         let roots = [
             URL(fileURLWithPath: "/Applications"),
             FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Applications"),
@@ -52,7 +57,7 @@ enum CLIError: Error, CustomStringConvertible, Equatable {
     var description: String {
         switch self {
         case .usage:
-            return "Usage: brewmatch scan [--json] [--output <path>] [--force] [--ignore-file <path>]\n       brewmatch report [--output <path>] [--force] [--ignore-file <path>]\n       brewmatch brewfile [--include-medium] [--include-low] [--include-ambiguous] [--with-comments] [--no-header] [--output <path>] [--force] [--ignore-file <path>]\n       brewmatch suggestions [brewfile options]"
+            return "Usage: brewmatch --version\n       brewmatch version\n       brewmatch scan [--json] [--output <path>] [--force] [--ignore-file <path>]\n       brewmatch report [--output <path>] [--force] [--ignore-file <path>]\n       brewmatch brewfile [--include-medium] [--include-low] [--include-ambiguous] [--with-comments] [--no-header] [--output <path>] [--force] [--ignore-file <path>]\n       brewmatch suggestions [brewfile options]"
         case .missingValue(let flag):
             return "Missing value for \(flag)."
         case .unsupportedOutputExtension(let ext):

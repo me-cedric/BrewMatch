@@ -12,6 +12,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Swift version
         run: swift --version
+      - name: Package sanity
+        run: swift package describe
       - name: Build
         run: swift build
       - name: Test

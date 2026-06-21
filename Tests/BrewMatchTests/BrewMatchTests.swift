@@ -279,6 +279,13 @@ import Testing
     #expect(options.withComments)
 }
 
+@Test func versionProviderAndOptions() throws {
+    #expect(BrewMatchVersion.value == "0.1.0")
+    #expect(BrewMatchVersion.display == "BrewMatch 0.1.0")
+    #expect(try CLIOptions.parse(["--version"]).command == "version")
+    #expect(try CLIOptions.parse(["version"]).command == "version")
+}
+
 private struct MockBrewClient: BrewClient {
     var isAvailable: Bool = true
     var warningList: [String] = []

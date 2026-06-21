@@ -18,7 +18,9 @@ It is designed for local-first inventory and migration planning. It does not mod
 
 ## Status
 
-BrewMatch is early pre-1.0 software. The scanner, report output, ignore file, and Brewfile suggestion export are functional and covered by unit tests. Matching remains heuristic and should be reviewed before running `brew bundle`.
+BrewMatch is early pre-1.0 software. Current version: `0.1.0`.
+
+The scanner, report output, ignore file, and Brewfile suggestion export are functional and covered by unit tests. Matching remains heuristic and should be reviewed before running `brew bundle`.
 
 | Area | Current state |
 | --- | --- |
@@ -58,6 +60,18 @@ cd BrewMatch
 swift build -c release
 ```
 
+Install the release binary locally:
+
+```sh
+cp .build/release/brewmatch /usr/local/bin/brewmatch
+```
+
+Safer local test before installing:
+
+```sh
+.build/release/brewmatch scan
+```
+
 Run from SwiftPM:
 
 ```sh
@@ -70,17 +84,19 @@ Use built binary:
 .build/release/brewmatch scan
 ```
 
+No Homebrew cask or tap exists yet.
+
 ## Commands
 
-```sh
-brewmatch scan
-brewmatch scan --json
-brewmatch scan --output report.json
-brewmatch report --output report.txt --force
-brewmatch brewfile
-brewmatch brewfile --with-comments --output Brewfile
-brewmatch suggestions
-```
+| Command | Purpose |
+| --- | --- |
+| `brewmatch scan` | Scan apps and print a text report. |
+| `brewmatch scan --json` | Scan apps and print JSON. |
+| `brewmatch scan --output report.json` | Export JSON report based on `.json` extension. |
+| `brewmatch report --output report.txt --force` | Export text report and overwrite existing file. |
+| `brewmatch brewfile` | Print suggested Brewfile content. |
+| `brewmatch brewfile --with-comments --output Brewfile` | Export commented Brewfile suggestions. |
+| `brewmatch suggestions` | Alias for `brewmatch brewfile --with-comments`. |
 
 `suggestions` is an alias for `brewfile --with-comments`.
 
@@ -89,6 +105,12 @@ Report export:
 ```sh
 brewmatch scan --output report.json
 brewmatch report --output report.txt --force
+```
+
+JSON output includes raw app fields, match reasons, warnings, and summary counts:
+
+```sh
+brewmatch scan --json
 ```
 
 ## Brewfile Export
@@ -179,11 +201,28 @@ Core boundaries:
 ## Testing
 
 ```sh
+swift package describe
 swift test
 swift build
 ```
 
 Unit tests do not require Homebrew to be installed.
+
+Shortcut targets:
+
+```sh
+./scripts/validate.sh
+./scripts/smoke-release.sh
+make validate
+make smoke
+make build
+make test
+make clean
+```
+
+## Release Builds
+
+The manual `Release Build` GitHub Actions workflow builds a release binary and uploads it as an artifact. It does not publish a Homebrew tap and does not require secrets.
 
 ## Current Limitations
 
@@ -198,6 +237,23 @@ Unit tests do not require Homebrew to be installed.
 - Better duplicate app grouping.
 - Optional config file.
 - GUI later, after CLI behavior stabilizes.
+
+## Contributing
+
+Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a PR.
+
+Keep changes aligned with the read-only safety model:
+
+- no app modification,
+- no telemetry,
+- no secrets,
+- no Homebrew dependency in tests.
+
+## Security
+
+BrewMatch reports may include app names, bundle identifiers, versions, and local paths. Treat JSON reports as potentially sensitive and sanitize them before sharing.
+
+See [SECURITY.md](SECURITY.md) for reporting guidance.
 
 ## Keywords
 

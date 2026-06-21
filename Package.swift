@@ -5,6 +5,9 @@ import PackageDescription
 
 let package = Package(
     name: "BrewMatch",
+    platforms: [
+        .macOS(.v14),
+    ],
     products: [
         .executable(name: "brewmatch", targets: ["BrewMatch"]),
     ],

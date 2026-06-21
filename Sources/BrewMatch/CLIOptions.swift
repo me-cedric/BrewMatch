@@ -14,8 +14,12 @@ struct CLIOptions {
 
     static func parse(_ arguments: [String]) throws -> CLIOptions {
         var args = arguments
+        if args == ["--version"] {
+            return CLIOptions.version()
+        }
+
         let command = args.first { !$0.hasPrefix("-") } ?? "scan"
-        guard ["scan", "report", "brewfile", "suggestions"].contains(command) else { throw CLIError.usage }
+        guard ["scan", "report", "brewfile", "suggestions", "version"].contains(command) else { throw CLIError.usage }
         args.removeAll { $0 == command }
 
         var json = false
@@ -69,6 +73,21 @@ struct CLIOptions {
             includeAmbiguous: includeAmbiguous,
             withComments: withComments,
             noHeader: noHeader
+        )
+    }
+
+    private static func version() -> CLIOptions {
+        CLIOptions(
+            command: "version",
+            json: false,
+            output: nil,
+            force: false,
+            ignoreFile: defaultIgnoreFile(),
+            includeMedium: false,
+            includeLow: false,
+            includeAmbiguous: false,
+            withComments: false,
+            noHeader: false
         )
     }
 
