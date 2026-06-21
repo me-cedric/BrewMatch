@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### v0.2.0 foundation
+
+- Added dry-run migration plan command.
+- Added JSON migration plan output with `safetyMode: "dry-run"`.
+- Added optional command rendering for future adopt commands without execution.
+- Added risk levels, plan statuses, strict mode, explain output, and command kind fields.
+- Added machine-readable plan JSON schema documentation.
+- Kept real app adoption out of scope.
+
 ## 0.1.0 - 2026-06-21
 
 ### Batch 1

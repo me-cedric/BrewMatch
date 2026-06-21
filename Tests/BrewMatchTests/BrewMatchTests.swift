@@ -286,6 +286,134 @@ import Testing
     #expect(try CLIOptions.parse(["version"]).command == "version")
 }
 
+@Test func planIncludesHighConfidenceByDefault() {
+    let plan = MigrationPlanner().build(brewfileResult(), options: MigrationPlanOptions())
+    #expect(plan.proposedActions.map { $0.selectedCandidate?.token } == ["firefox"])
+}
+
+@Test func planExcludesMediumAndLowByDefault() {
+    let plan = MigrationPlanner().build(brewfileResult(), options: MigrationPlanOptions())
+    #expect(!plan.proposedActions.contains { $0.selectedCandidate?.token == "cursor-editor" })
+    #expect(!plan.proposedActions.contains { $0.selectedCandidate?.token == "fireflop" })
+}
+
+@Test func planIncludeMediumWorks() {
+    let plan = MigrationPlanner().build(brewfileResult(), options: MigrationPlanOptions(includeMedium: true))
+    #expect(plan.reviewRequiredActions.contains { $0.selectedCandidate?.token == "cursor-editor" })
+}
+
+@Test func planIncludeLowWorks() {
+    let plan = MigrationPlanner().build(brewfileResult(), options: MigrationPlanOptions(includeLow: true))
+    #expect(plan.reviewRequiredActions.contains { $0.selectedCandidate?.token == "fireflop" })
+}
+
+@Test func planAmbiguousBecomesReviewRequired() {
+    let plan = MigrationPlanner().build(brewfileResult(), options: MigrationPlanOptions())
+    #expect(plan.reviewRequiredActions.contains { $0.appName == "Cursor.app" && $0.reasons.contains("ambiguous candidates") })
+}
+
+@Test func planIncludeAmbiguousKeepsReviewNeededNotExecutable() {
+    let plan = MigrationPlanner().build(brewfileResult(), options: MigrationPlanOptions(includeAmbiguous: true, withCommands: true))
+    let review = plan.reviewRequiredActions.first { $0.appName == "Cursor.app" && $0.selectedCandidate?.token == "cursor" }
+    #expect(review?.alternativeCandidates.map(\.token) == ["cursor-cli"])
+    #expect(!plan.proposedActions.contains { $0.selectedCandidate?.token == "cursor" })
+}
+
+@Test func planJSONContainsDryRunSafetyMode() throws {
+    let plan = MigrationPlanner().build(
+        brewfileResult(),
+        options: MigrationPlanOptions(),
+        generatedAt: Date(timeIntervalSince1970: 0)
+    )
+    let json = try MigrationPlanRenderer().json(plan)
+    #expect(json.contains("\"safetyMode\" : \"dry-run\""))
+    #expect(json.contains("\"schemaVersion\" : \"1\""))
+    #expect(json.contains("\"version\" : \"0.1.0\""))
+}
+
+@Test func planWithCommandsRendersAdoptCommand() {
+    let plan = MigrationPlanner().build(brewfileResult(), options: MigrationPlanOptions(withCommands: true))
+    let text = MigrationPlanRenderer().text(plan)
+    #expect(text.contains("No actions will be executed."))
+    #expect(text.contains("command: brew install --cask --adopt firefox"))
+}
+
+@Test func planDefaultDoesNotRenderExecutableCommand() {
+    let plan = MigrationPlanner().build(brewfileResult(), options: MigrationPlanOptions())
+    let text = MigrationPlanRenderer().text(plan)
+    #expect(text.contains("No actions will be executed."))
+    #expect(!text.contains("brew install --cask --adopt"))
+    #expect(plan.proposedActions.allSatisfy { $0.command == nil })
+}
+
+@Test func planLowRiskForExactBundleIDHighConfidence() {
+    let plan = MigrationPlanner().build(brewfileResult(), options: MigrationPlanOptions())
+    let firefox = plan.proposedActions.first { $0.selectedCandidate?.token == "firefox" }
+    #expect(firefox?.risk == .low)
+    #expect(firefox?.status == .proposed)
+}
+
+@Test func planMediumRiskForHighConfidenceTokenOnly() {
+    let plan = MigrationPlanner().build(
+        ScanResult(summary: emptySummary(1), warnings: [], reports: [
+            report("Token.app", token: "token", confidence: .high),
+        ]),
+        options: MigrationPlanOptions()
+    )
+    #expect(plan.proposedActions.first?.risk == .medium)
+}
+
+@Test func planStrictIncludesOnlyLowRiskProposed() {
+    let plan = MigrationPlanner().build(
+        ScanResult(summary: emptySummary(2), warnings: [], reports: [
+            report("Firefox.app", bundleID: "org.mozilla.firefox", token: "firefox", confidence: .high, reason: "exact bundle identifier match"),
+            report("Token.app", token: "token", confidence: .high),
+        ]),
+        options: MigrationPlanOptions(strict: true)
+    )
+
+    #expect(plan.proposedActions.map { $0.selectedCandidate?.token } == ["firefox"])
+    #expect(plan.reviewRequiredActions.contains { $0.selectedCandidate?.token == "token" && $0.reasons.contains("excluded by strict mode") })
+}
+
+@Test func planWithCommandsActiveOnlyForProposed() {
+    let plan = MigrationPlanner().build(brewfileResult(), options: MigrationPlanOptions(includeMedium: true, withCommands: true))
+    #expect(plan.proposedActions.first { $0.selectedCandidate?.token == "firefox" }?.commandKind == .active)
+    #expect(plan.proposedActions.first { $0.selectedCandidate?.token == "firefox" }?.command == "brew install --cask --adopt firefox")
+    #expect(plan.reviewRequiredActions.first { $0.selectedCandidate?.token == "cursor-editor" }?.commandKind == .commented)
+    #expect(plan.reviewRequiredActions.first { $0.selectedCandidate?.token == "cursor-editor" }?.command == "# review required: brew install --cask --adopt cursor-editor")
+}
+
+@Test func planExplainOutputIncludesReasons() {
+    let plan = MigrationPlanner().build(brewfileResult(), options: MigrationPlanOptions(withCommands: true))
+    let text = MigrationPlanRenderer().text(plan, explain: true)
+    #expect(text.contains("source: manual app"))
+    #expect(text.contains("reasons:"))
+    #expect(text.contains("match: exact bundle identifier match"))
+}
+
+@Test func planJSONContainsRiskStatusCommandKindCandidates() throws {
+    let plan = MigrationPlanner().build(brewfileResult(), options: MigrationPlanOptions(withCommands: true))
+    let json = try MigrationPlanRenderer().json(plan)
+    #expect(json.contains("\"risk\" : \"low\""))
+    #expect(json.contains("\"status\" : \"proposed\""))
+    #expect(json.contains("\"commandKind\" : \"active\""))
+    #expect(json.contains("\"selectedCandidate\""))
+    #expect(json.contains("\"alternativeCandidates\""))
+}
+
+@Test func planOutputOverwriteGuardWorks() throws {
+    let url = try temporaryDirectory().appendingPathComponent("plan.json")
+    try "{}".write(to: url, atomically: true, encoding: .utf8)
+
+    do {
+        try Exporter().write("{}", to: url, force: false)
+        Issue.record("Expected overwrite refusal")
+    } catch CLIError.outputExists(let path) {
+        #expect(path == url.path)
+    }
+}
+
 private struct MockBrewClient: BrewClient {
     var isAvailable: Bool = true
     var warningList: [String] = []

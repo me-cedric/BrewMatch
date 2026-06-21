@@ -17,6 +17,24 @@ enum BrewMatchCLI {
         let result = Reporter().build(apps: AppScanner().scan(roots: roots), brew: LocalBrewClient(), ignoreList: ignoreList)
         let exporter = Exporter()
 
+        if options.command == "plan" {
+            let plan = MigrationPlanner().build(result, options: MigrationPlanOptions(
+                includeMedium: options.includeMedium,
+                includeLow: options.includeLow,
+                includeAmbiguous: options.includeAmbiguous,
+                withCommands: options.withCommands,
+                strict: options.strict,
+                explain: options.explain
+            ))
+            let content = options.json ? try MigrationPlanRenderer().json(plan) : MigrationPlanRenderer().text(plan, explain: options.explain)
+            if let output = options.output {
+                try exporter.write(content, to: output, force: options.force)
+            } else {
+                print(content, terminator: "")
+            }
+            return
+        }
+
         if options.command == "brewfile" || options.command == "suggestions" {
             let content = BrewfileRenderer().render(result, options: BrewfileOptions(
                 includeMedium: options.includeMedium,
@@ -57,7 +75,7 @@ enum CLIError: Error, CustomStringConvertible, Equatable {
     var description: String {
         switch self {
         case .usage:
-            return "Usage: brewmatch --version\n       brewmatch version\n       brewmatch scan [--json] [--output <path>] [--force] [--ignore-file <path>]\n       brewmatch report [--output <path>] [--force] [--ignore-file <path>]\n       brewmatch brewfile [--include-medium] [--include-low] [--include-ambiguous] [--with-comments] [--no-header] [--output <path>] [--force] [--ignore-file <path>]\n       brewmatch suggestions [brewfile options]"
+            return "Usage: brewmatch --version\n       brewmatch version\n       brewmatch scan [--json] [--output <path>] [--force] [--ignore-file <path>]\n       brewmatch report [--output <path>] [--force] [--ignore-file <path>]\n       brewmatch brewfile [--include-medium] [--include-low] [--include-ambiguous] [--with-comments] [--no-header] [--output <path>] [--force] [--ignore-file <path>]\n       brewmatch suggestions [brewfile options]\n       brewmatch plan [--json] [--strict] [--explain] [--include-medium] [--include-low] [--include-ambiguous] [--with-commands] [--output <path>] [--force] [--ignore-file <path>]"
         case .missingValue(let flag):
             return "Missing value for \(flag)."
         case .unsupportedOutputExtension(let ext):

@@ -97,6 +97,10 @@ No Homebrew cask or tap exists yet.
 | `brewmatch brewfile` | Print suggested Brewfile content. |
 | `brewmatch brewfile --with-comments --output Brewfile` | Export commented Brewfile suggestions. |
 | `brewmatch suggestions` | Alias for `brewmatch brewfile --with-comments`. |
+| `brewmatch plan` | Print a dry-run migration plan. No actions are executed. |
+| `brewmatch plan --strict` | Include only low-risk proposed entries; move other candidates to review. |
+| `brewmatch plan --explain` | Include detailed reasoning, source classification, and risk notes. |
+| `brewmatch plan --with-commands` | Include proposed commands as dry-run text only. |
 
 `suggestions` is an alias for `brewfile --with-comments`.
 
@@ -146,6 +150,49 @@ Ambiguous matches are commented when included:
 # cask "cursor"
 ```
 
+## Migration Plan
+
+`brewmatch plan` prepares a dry-run migration plan for apps that may be movable under Homebrew management later.
+
+It does not run `brew install --cask --adopt`, install casks, delete apps, move apps, or modify apps.
+
+```sh
+brewmatch plan
+brewmatch plan --json
+brewmatch plan --strict
+brewmatch plan --explain
+brewmatch plan --with-commands
+brewmatch plan --output plan.json --json --force
+```
+
+Every plan includes:
+
+```text
+No actions will be executed.
+```
+
+Risk levels:
+
+- `low`: high confidence from an exact bundle identifier match.
+- `medium`: high confidence from app name, artifact name, or token matching.
+- `review-required`: medium or low confidence, ambiguous candidates, App Store apps, and system apps.
+
+Plan statuses:
+
+- `proposed`: low/medium risk high-confidence candidates, unless `--strict` excludes medium risk.
+- `reviewRequired`: candidates that should be manually checked.
+- `skipped`: system, App Store, ignored, already managed, no-match, or threshold-excluded apps.
+
+`--strict` keeps only low-risk entries as proposed and marks medium-risk candidates as review-required with `excluded by strict mode`.
+
+Exact adopt commands are shown only when `--with-commands` is passed. Proposed entries render active command text. Review-required entries render commented command text:
+
+```sh
+# review required: brew install --cask --adopt cursor
+```
+
+These commands are never executed by BrewMatch. See [docs/plan-json-schema.md](docs/plan-json-schema.md) for machine-readable plan fields.
+
 ## Ignore File
 
 Default path:
@@ -186,6 +233,7 @@ BrewMatch/
 │   ├── Matcher.swift             # cask confidence scoring
 │   ├── Reporter.swift            # scan report assembly and text/JSON rendering
 │   ├── BrewfileRenderer.swift    # suggestion-only Brewfile output
+│   ├── MigrationPlan.swift       # dry-run migration planning and plan JSON
 │   └── main.swift                # CLI entry point
 └── Tests/BrewMatchTests/
 ```

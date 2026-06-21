@@ -10,7 +10,10 @@ struct CLIOptions {
     var includeLow: Bool
     var includeAmbiguous: Bool
     var withComments: Bool
+    var withCommands: Bool
     var noHeader: Bool
+    var strict: Bool
+    var explain: Bool
 
     static func parse(_ arguments: [String]) throws -> CLIOptions {
         var args = arguments
@@ -19,7 +22,7 @@ struct CLIOptions {
         }
 
         let command = args.first { !$0.hasPrefix("-") } ?? "scan"
-        guard ["scan", "report", "brewfile", "suggestions", "version"].contains(command) else { throw CLIError.usage }
+        guard ["scan", "report", "brewfile", "suggestions", "plan", "version"].contains(command) else { throw CLIError.usage }
         args.removeAll { $0 == command }
 
         var json = false
@@ -30,7 +33,10 @@ struct CLIOptions {
         var includeLow = false
         var includeAmbiguous = false
         var withComments = command == "suggestions"
+        var withCommands = false
         var noHeader = false
+        var strict = false
+        var explain = false
 
         while let arg = args.first {
             args.removeFirst()
@@ -45,8 +51,14 @@ struct CLIOptions {
                 includeAmbiguous = true
             case "--with-comments":
                 withComments = true
+            case "--with-commands":
+                withCommands = true
             case "--no-header":
                 noHeader = true
+            case "--strict":
+                strict = true
+            case "--explain":
+                explain = true
             case "--force":
                 force = true
             case "--output":
@@ -72,7 +84,10 @@ struct CLIOptions {
             includeLow: includeLow,
             includeAmbiguous: includeAmbiguous,
             withComments: withComments,
-            noHeader: noHeader
+            withCommands: withCommands,
+            noHeader: noHeader,
+            strict: strict,
+            explain: explain
         )
     }
 
@@ -87,7 +102,10 @@ struct CLIOptions {
             includeLow: false,
             includeAmbiguous: false,
             withComments: false,
-            noHeader: false
+            withCommands: false,
+            noHeader: false,
+            strict: false,
+            explain: false
         )
     }
 
