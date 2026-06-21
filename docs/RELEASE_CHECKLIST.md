@@ -1,6 +1,6 @@
 # Release Checklist
 
-## v0.1.0
+## Versioned Release
 
 1. Validate locally:
 
@@ -13,7 +13,7 @@
 
    ```sh
    git add .
-   git commit -m "chore: prepare v0.1.0 release"
+   git commit -m "chore: release vX.Y.Z"
    ```
 
 3. Push `main`:
@@ -27,11 +27,11 @@
 5. Create tag:
 
    ```sh
-   git tag -a v0.1.0 -m "BrewMatch 0.1.0"
-   git push origin v0.1.0
+   git tag -a vX.Y.Z -m "BrewMatch X.Y.Z"
+   git push origin vX.Y.Z
    ```
 
-6. Run the manual `Release Build` workflow with version `0.1.0`.
+6. Run the manual `Release Build` workflow with version `X.Y.Z`.
 
 7. Download the workflow artifact.
 

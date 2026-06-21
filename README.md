@@ -18,7 +18,7 @@ It is designed for local-first inventory and migration planning. It does not mod
 
 ## Status
 
-BrewMatch is early pre-1.0 software. Current version: `0.1.0`.
+BrewMatch is early pre-1.0 software. Current version: `0.2.0`.
 
 The scanner, report output, ignore file, and Brewfile suggestion export are functional and covered by unit tests. Matching remains heuristic and should be reviewed before running `brew bundle`.
 
@@ -97,7 +97,7 @@ No Homebrew cask or tap exists yet.
 | `brewmatch brewfile` | Print suggested Brewfile content. |
 | `brewmatch brewfile --with-comments --output Brewfile` | Export commented Brewfile suggestions. |
 | `brewmatch suggestions` | Alias for `brewmatch brewfile --with-comments`. |
-| `brewmatch plan` | Print a dry-run migration plan. No actions are executed. |
+| `brewmatch plan` | Print a dry-run migration plan. No actions are executed. v0.2 still does not adopt apps. |
 | `brewmatch plan --strict` | Include only low-risk proposed entries; move other candidates to review. |
 | `brewmatch plan --explain` | Include detailed reasoning, source classification, and risk notes. |
 | `brewmatch plan --with-commands` | Include proposed commands as dry-run text only. |
@@ -160,9 +160,11 @@ It does not run `brew install --cask --adopt`, install casks, delete apps, move 
 brewmatch plan
 brewmatch plan --json
 brewmatch plan --strict
+brewmatch plan --strict --with-commands
 brewmatch plan --explain
 brewmatch plan --with-commands
 brewmatch plan --output plan.json --json --force
+brewmatch plan --json --output plan.json --force
 ```
 
 Every plan includes:

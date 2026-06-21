@@ -7,7 +7,7 @@
 ```json
 {
   "schemaVersion": "1",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "generatedAt": "2026-06-21T20:00:00Z",
   "safetyMode": "dry-run",
   "proposedActions": [],
