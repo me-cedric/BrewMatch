@@ -414,6 +414,180 @@ import Testing
     }
 }
 
+@Test func adoptWithoutExecuteDoesNotCallExecutor() {
+    let executor = MockBrewExecutor()
+    let response = AdoptCoordinator().run(
+        plan: adoptPlan(),
+        options: AdoptOptions(cask: "firefox"),
+        brewAvailable: true,
+        executor: executor
+    )
+    #expect(!response.executed)
+    #expect(!response.blocked)
+    #expect(executor.calls.isEmpty)
+}
+
+@Test func adoptDryRunJSONHasExecutionModeDryRun() throws {
+    let response = AdoptCoordinator().run(
+        plan: adoptPlan(),
+        options: AdoptOptions(cask: "firefox"),
+        brewAvailable: true,
+        executor: MockBrewExecutor()
+    )
+    let json = try AdoptRenderer().json(response)
+    #expect(json.contains("\"executionMode\" : \"dry-run\""))
+    #expect(json.contains("\"executed\" : false"))
+}
+
+@Test func adoptExecuteWithoutConfirmBlocks() {
+    let executor = MockBrewExecutor()
+    let response = AdoptCoordinator().run(
+        plan: adoptPlan(),
+        options: AdoptOptions(cask: "firefox", execute: true),
+        brewAvailable: true,
+        executor: executor
+    )
+    #expect(response.blocked)
+    #expect(response.blockReasons.contains("confirmation required: --confirm \"adopt firefox\""))
+    #expect(executor.calls.isEmpty)
+}
+
+@Test func adoptExecuteWithWrongConfirmBlocks() {
+    let executor = MockBrewExecutor()
+    let response = AdoptCoordinator().run(
+        plan: adoptPlan(),
+        options: AdoptOptions(cask: "firefox", execute: true, confirm: "adopt nope"),
+        brewAvailable: true,
+        executor: executor
+    )
+    #expect(response.blocked)
+    #expect(executor.calls.isEmpty)
+}
+
+@Test func adoptExecuteWithCorrectConfirmCallsExecutorOnce() {
+    let executor = MockBrewExecutor(stdout: "ok", stderr: "warn", exitCode: 0)
+    let response = AdoptCoordinator().run(
+        plan: adoptPlan(),
+        options: AdoptOptions(cask: "firefox", execute: true, confirm: "adopt firefox"),
+        brewAvailable: true,
+        executor: executor
+    )
+    #expect(response.executed)
+    #expect(executor.calls == [["install", "--cask", "--adopt", "firefox"]])
+}
+
+@Test func adoptExecutorReceivesExactArgs() {
+    let executor = MockBrewExecutor()
+    _ = AdoptCoordinator().run(
+        plan: adoptPlan(),
+        options: AdoptOptions(cask: "firefox", execute: true, confirm: "adopt firefox"),
+        brewAvailable: true,
+        executor: executor
+    )
+    #expect(executor.calls.first == ["install", "--cask", "--adopt", "firefox"])
+}
+
+@Test func adoptNonLowRiskCandidateBlocks() {
+    let response = AdoptCoordinator().run(
+        plan: adoptPlan(),
+        options: AdoptOptions(cask: "token", execute: true, confirm: "adopt token"),
+        brewAvailable: true,
+        executor: MockBrewExecutor()
+    )
+    #expect(response.blocked)
+    #expect(response.blockReasons.contains("selected action risk is medium, required low"))
+}
+
+@Test func adoptReviewRequiredCandidateBlocks() {
+    let response = AdoptCoordinator().run(
+        plan: adoptPlan(),
+        options: AdoptOptions(cask: "cursor-editor", execute: true, confirm: "adopt cursor-editor"),
+        brewAvailable: true,
+        executor: MockBrewExecutor()
+    )
+    #expect(response.blocked)
+    #expect(response.blockReasons.contains("selected action is not proposed"))
+}
+
+@Test func adoptAmbiguousSelectorBlocks() {
+    let response = AdoptCoordinator().run(
+        plan: adoptPlan(),
+        options: AdoptOptions(app: "Cursor.app", execute: true, confirm: "adopt cursor"),
+        brewAvailable: true,
+        executor: MockBrewExecutor()
+    )
+    #expect(response.blocked)
+    #expect(response.blockReasons.contains("selector matched multiple entries; use a more specific selector"))
+}
+
+@Test func adoptIgnoredMASSystemCandidatesBlock() {
+    let plan = adoptPlan()
+    for token in ["ignored-cask", "store-cask", "safari-cask"] {
+        let response = AdoptCoordinator().run(
+            plan: plan,
+            options: AdoptOptions(cask: token, execute: true, confirm: "adopt \(token)"),
+            brewAvailable: true,
+            executor: MockBrewExecutor()
+        )
+        #expect(response.blocked)
+        #expect(response.blockReasons.contains("selected action is not proposed"))
+    }
+}
+
+@Test func adoptSelectorByCaskWorks() {
+    let response = AdoptCoordinator().run(
+        plan: adoptPlan(),
+        options: AdoptOptions(cask: "firefox"),
+        brewAvailable: true,
+        executor: MockBrewExecutor()
+    )
+    #expect(response.selectedAction?.selectedCandidate?.token == "firefox")
+}
+
+@Test func adoptSelectorByAppNameWorks() {
+    let response = AdoptCoordinator().run(
+        plan: adoptPlan(),
+        options: AdoptOptions(app: "Firefox.app"),
+        brewAvailable: true,
+        executor: MockBrewExecutor()
+    )
+    #expect(response.selectedAction?.appName == "Firefox.app")
+}
+
+@Test func adoptSelectorByBundleIDWorks() {
+    let response = AdoptCoordinator().run(
+        plan: adoptPlan(),
+        options: AdoptOptions(app: "org.mozilla.firefox"),
+        brewAvailable: true,
+        executor: MockBrewExecutor()
+    )
+    #expect(response.selectedAction?.bundleIdentifier == "org.mozilla.firefox")
+}
+
+@Test func adoptJSONBlockedResponseContainsReasons() throws {
+    let response = AdoptCoordinator().run(
+        plan: adoptPlan(),
+        options: AdoptOptions(cask: "cursor-editor", execute: true, confirm: "adopt cursor-editor"),
+        brewAvailable: true,
+        executor: MockBrewExecutor()
+    )
+    let json = try AdoptRenderer().json(response)
+    #expect(json.contains("\"blocked\" : true"))
+    #expect(json.contains("\"blockReasons\""))
+}
+
+@Test func adoptSuccessfulMockExecutionIncludesOutputFields() {
+    let response = AdoptCoordinator().run(
+        plan: adoptPlan(),
+        options: AdoptOptions(cask: "firefox", execute: true, confirm: "adopt firefox"),
+        brewAvailable: true,
+        executor: MockBrewExecutor(stdout: "installed", stderr: "notice", exitCode: 0)
+    )
+    #expect(response.stdout == "installed")
+    #expect(response.stderr == "notice")
+    #expect(response.exitCode == 0)
+}
+
 private struct MockBrewClient: BrewClient {
     var isAvailable: Bool = true
     var warningList: [String] = []
@@ -425,6 +599,48 @@ private struct MockBrewClient: BrewClient {
     func installedCasks() -> [CaskMetadata] { installed }
     func availableCasks() -> [CaskMetadata] { available }
     func metadata(for token: String) -> CaskMetadata? { byToken[token] }
+}
+
+private final class MockBrewExecutor: BrewExecutor {
+    var calls: [[String]] = []
+    var stdout: String
+    var stderr: String
+    var exitCode: Int32
+
+    init(stdout: String = "", stderr: String = "", exitCode: Int32 = 0) {
+        self.stdout = stdout
+        self.stderr = stderr
+        self.exitCode = exitCode
+    }
+
+    func run(arguments: [String]) -> BrewExecutionResult {
+        calls.append(arguments)
+        return BrewExecutionResult(stdout: stdout, stderr: stderr, exitCode: exitCode)
+    }
+}
+
+private func adoptPlan() -> MigrationPlan {
+    MigrationPlanner().build(
+        ScanResult(summary: emptySummary(10), warnings: [], reports: [
+            report("Firefox.app", bundleID: "org.mozilla.firefox", token: "firefox", confidence: .high, reason: "exact bundle identifier match"),
+            report("Token.app", token: "token", confidence: .high),
+            report("Cursor.app", token: "cursor-editor", confidence: .medium, reason: "prefix/contains normalized match"),
+            AppReport(status: .ambiguous, app: app("Cursor.app"), matches: [
+                CaskMatch(token: "cursor", confidence: .medium, reason: "normalized app name match"),
+                CaskMatch(token: "cursor-cli", confidence: .medium, reason: "token prefix match"),
+            ], matchReason: "normalized app name match"),
+            AppReport(status: .ignored, app: app("Ignored.app"), matches: [
+                CaskMatch(token: "ignored-cask", confidence: .high, reason: "exact normalized cask token/name match"),
+            ], matchReason: "ignored by ignore file"),
+            AppReport(status: .skippedAppStore, app: app("Store.app", mas: true), matches: [
+                CaskMatch(token: "store-cask", confidence: .high, reason: "exact normalized cask token/name match"),
+            ], matchReason: "App Store app"),
+            AppReport(status: .skippedSystem, app: app("Safari.app", system: true), matches: [
+                CaskMatch(token: "safari-cask", confidence: .high, reason: "exact normalized cask token/name match"),
+            ], matchReason: "system app"),
+        ]),
+        options: MigrationPlanOptions(includeMedium: true, withCommands: true)
+    )
 }
 
 private func brewfileResult() -> ScanResult {

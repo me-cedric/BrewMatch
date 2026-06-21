@@ -14,6 +14,10 @@ struct CLIOptions {
     var noHeader: Bool
     var strict: Bool
     var explain: Bool
+    var cask: String?
+    var app: String?
+    var execute: Bool
+    var confirm: String?
 
     static func parse(_ arguments: [String]) throws -> CLIOptions {
         var args = arguments
@@ -22,7 +26,7 @@ struct CLIOptions {
         }
 
         let command = args.first { !$0.hasPrefix("-") } ?? "scan"
-        guard ["scan", "report", "brewfile", "suggestions", "plan", "version"].contains(command) else { throw CLIError.usage }
+        guard ["scan", "report", "brewfile", "suggestions", "plan", "adopt", "version"].contains(command) else { throw CLIError.usage }
         args.removeAll { $0 == command }
 
         var json = false
@@ -37,6 +41,10 @@ struct CLIOptions {
         var noHeader = false
         var strict = false
         var explain = false
+        var cask: String?
+        var app: String?
+        var execute = false
+        var confirm: String?
 
         while let arg = args.first {
             args.removeFirst()
@@ -59,6 +67,20 @@ struct CLIOptions {
                 strict = true
             case "--explain":
                 explain = true
+            case "--execute":
+                execute = true
+            case "--cask":
+                guard let value = args.first else { throw CLIError.missingValue("--cask") }
+                args.removeFirst()
+                cask = value
+            case "--app":
+                guard let value = args.first else { throw CLIError.missingValue("--app") }
+                args.removeFirst()
+                app = value
+            case "--confirm":
+                guard let value = args.first else { throw CLIError.missingValue("--confirm") }
+                args.removeFirst()
+                confirm = value
             case "--force":
                 force = true
             case "--output":
@@ -87,7 +109,11 @@ struct CLIOptions {
             withCommands: withCommands,
             noHeader: noHeader,
             strict: strict,
-            explain: explain
+            explain: explain,
+            cask: cask,
+            app: app,
+            execute: execute,
+            confirm: confirm
         )
     }
 
@@ -105,7 +131,11 @@ struct CLIOptions {
             withCommands: false,
             noHeader: false,
             strict: false,
-            explain: false
+            explain: false,
+            cask: nil,
+            app: nil,
+            execute: false,
+            confirm: nil
         )
     }
 

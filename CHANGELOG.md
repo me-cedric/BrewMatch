@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### v0.3.0 foundation
+
+- Added guarded `brewmatch adopt` command.
+- Kept dry-run as default behavior.
+- Added `--execute` and exact `--confirm "adopt <token>"` safety gates.
+- Added executor abstraction for future `brew install --cask --adopt <token>` calls.
+- Added JSON adopt responses with execution mode, command args, block reasons, and mocked execution result fields.
+- Kept real adoption out of tests and default behavior.
+
 ## 0.2.0 - 2026-06-21
 
 - Added dry-run migration plan command.

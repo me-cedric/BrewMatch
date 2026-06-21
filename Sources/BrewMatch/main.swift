@@ -17,7 +17,7 @@ enum BrewMatchCLI {
         let result = Reporter().build(apps: AppScanner().scan(roots: roots), brew: LocalBrewClient(), ignoreList: ignoreList)
         let exporter = Exporter()
 
-        if options.command == "plan" {
+        if options.command == "plan" || options.command == "adopt" {
             let plan = MigrationPlanner().build(result, options: MigrationPlanOptions(
                 includeMedium: options.includeMedium,
                 includeLow: options.includeLow,
@@ -26,6 +26,34 @@ enum BrewMatchCLI {
                 strict: options.strict,
                 explain: options.explain
             ))
+
+            if options.command == "adopt" {
+                let response = AdoptCoordinator().run(
+                    plan: plan,
+                    options: AdoptOptions(
+                        cask: options.cask,
+                        app: options.app,
+                        execute: options.execute,
+                        confirm: options.confirm,
+                        json: options.json,
+                        strict: options.strict,
+                        explain: options.explain
+                    ),
+                    brewAvailable: LocalBrewClient().isAvailable,
+                    executor: LocalBrewExecutor()
+                )
+                let content = options.json ? try AdoptRenderer().json(response) : AdoptRenderer().text(response, explain: options.explain)
+                if let output = options.output {
+                    try exporter.write(content, to: output, force: options.force)
+                } else {
+                    print(content, terminator: "")
+                }
+                if response.blocked && options.execute {
+                    exit(64)
+                }
+                return
+            }
+
             let content = options.json ? try MigrationPlanRenderer().json(plan) : MigrationPlanRenderer().text(plan, explain: options.explain)
             if let output = options.output {
                 try exporter.write(content, to: output, force: options.force)
@@ -75,7 +103,7 @@ enum CLIError: Error, CustomStringConvertible, Equatable {
     var description: String {
         switch self {
         case .usage:
-            return "Usage: brewmatch --version\n       brewmatch version\n       brewmatch scan [--json] [--output <path>] [--force] [--ignore-file <path>]\n       brewmatch report [--output <path>] [--force] [--ignore-file <path>]\n       brewmatch brewfile [--include-medium] [--include-low] [--include-ambiguous] [--with-comments] [--no-header] [--output <path>] [--force] [--ignore-file <path>]\n       brewmatch suggestions [brewfile options]\n       brewmatch plan [--json] [--strict] [--explain] [--include-medium] [--include-low] [--include-ambiguous] [--with-commands] [--output <path>] [--force] [--ignore-file <path>]"
+            return "Usage: brewmatch --version\n       brewmatch version\n       brewmatch scan [--json] [--output <path>] [--force] [--ignore-file <path>]\n       brewmatch report [--output <path>] [--force] [--ignore-file <path>]\n       brewmatch brewfile [--include-medium] [--include-low] [--include-ambiguous] [--with-comments] [--no-header] [--output <path>] [--force] [--ignore-file <path>]\n       brewmatch suggestions [brewfile options]\n       brewmatch plan [--json] [--strict] [--explain] [--include-medium] [--include-low] [--include-ambiguous] [--with-commands] [--output <path>] [--force] [--ignore-file <path>]\n       brewmatch adopt [--cask <token>] [--app <name-or-bundle-id>] [--execute] [--confirm <phrase>] [--json] [--strict] [--explain] [--output <path>] [--force] [--ignore-file <path>]"
         case .missingValue(let flag):
             return "Missing value for \(flag)."
         case .unsupportedOutputExtension(let ext):

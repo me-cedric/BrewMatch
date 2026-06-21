@@ -101,6 +101,9 @@ No Homebrew cask or tap exists yet.
 | `brewmatch plan --strict` | Include only low-risk proposed entries; move other candidates to review. |
 | `brewmatch plan --explain` | Include detailed reasoning, source classification, and risk notes. |
 | `brewmatch plan --with-commands` | Include proposed commands as dry-run text only. |
+| `brewmatch adopt` | Dry-run adopt planning. No actions are executed by default. |
+| `brewmatch adopt --cask firefox` | Show the selected dry-run adoption candidate. |
+| `brewmatch adopt --cask firefox --execute --confirm "adopt firefox"` | Execute only if every safety gate passes. |
 
 `suggestions` is an alias for `brewfile --with-comments`.
 
@@ -194,6 +197,42 @@ Exact adopt commands are shown only when `--with-commands` is passed. Proposed e
 ```
 
 These commands are never executed by BrewMatch. See [docs/plan-json-schema.md](docs/plan-json-schema.md) for machine-readable plan fields.
+
+## Adopt
+
+`brewmatch adopt` is a guarded foundation for future Homebrew Cask adoption. Default behavior is dry-run.
+
+```sh
+brewmatch adopt
+brewmatch adopt --cask firefox
+brewmatch adopt --app Firefox.app
+brewmatch adopt --json --output adopt.json --force
+brewmatch adopt --cask firefox --execute --confirm "adopt firefox"
+```
+
+Dry-run output may show the exact command that would be used:
+
+```sh
+brew install --cask --adopt firefox
+```
+
+BrewMatch does not run that command unless all safety gates pass:
+
+- `--execute` is present.
+- Exactly one cask token or app selector is provided.
+- Selected entry is `proposed`.
+- Selected entry is `low` risk.
+- Selected match confidence is `high`.
+- Selected app is not ignored, not App Store, not system, and not ambiguous.
+- Confirmation phrase exactly matches `--confirm "adopt <token>"`.
+- Homebrew is available.
+- Command arguments are exactly `["install", "--cask", "--adopt", "<token>"]`.
+
+Blocked or dry-run output always includes:
+
+```text
+No actions were executed.
+```
 
 ## Ignore File
 
