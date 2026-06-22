@@ -14,7 +14,7 @@
 
 BrewMatch is a SwiftPM macOS CLI that scans installed `.app` bundles and reports which manually installed apps may have a Homebrew Cask replacement. It can also export a suggested Brewfile for review.
 
-It is designed for local-first inventory and migration planning. It does not modify applications.
+It is designed for local-first inventory and migration planning. It is dry-run by default; the only opt-in mutation path is the guarded Homebrew adopt command.
 
 ## Status
 
@@ -29,11 +29,13 @@ The scanner, report output, ignore file, and Brewfile suggestion export are func
 | Matching | Uses bundle identifiers, cask artifact names, normalized names, prefix matches, and fuzzy fallback. |
 | Reports | Text and JSON scan reports with summary counts and warnings. |
 | Brewfile export | Suggestion-only output for high-confidence matches by default. |
-| App changes | Not implemented by design. Read-only only. |
+| App changes | Dry-run by default. Guarded adoption command exists for one explicit Homebrew adopt command only. |
 
 ## Safety
 
-- No app install, delete, move, adopt, or modify actions.
+- Dry-run by default.
+- No direct app delete, move, or modify actions.
+- The only mutation path is an explicit `brew install --cask --adopt <token>` call after all adopt safety gates pass.
 - No credentials.
 - No telemetry.
 - No network calls except local `brew` commands.
@@ -103,7 +105,8 @@ No Homebrew cask or tap exists yet.
 | `brewmatch plan --with-commands` | Include proposed commands as dry-run text only. |
 | `brewmatch adopt` | Dry-run adopt planning. No actions are executed by default. |
 | `brewmatch adopt --cask firefox` | Show the selected dry-run adoption candidate. |
-| `brewmatch adopt --cask firefox --execute --confirm "adopt firefox"` | Execute only if every safety gate passes. |
+| `brewmatch adopt --dry-run --cask firefox` | Explicit dry-run; same as default. |
+| `brewmatch adopt --cask firefox --execute --confirm "adopt firefox" --i-understand-this-may-change-my-system` | Execute only if every safety gate and preflight check passes. |
 
 `suggestions` is an alias for `brewfile --with-comments`.
 
@@ -204,10 +207,13 @@ These commands are never executed by BrewMatch. See [docs/plan-json-schema.md](d
 
 ```sh
 brewmatch adopt
+brewmatch adopt --dry-run
 brewmatch adopt --cask firefox
 brewmatch adopt --app Firefox.app
 brewmatch adopt --json --output adopt.json --force
-brewmatch adopt --cask firefox --execute --confirm "adopt firefox"
+brewmatch adopt --cask firefox --audit-log adopt-audit.json
+brewmatch adopt --cask firefox --require-clean-plan --explain
+brewmatch adopt --cask firefox --execute --confirm "adopt firefox" --i-understand-this-may-change-my-system
 ```
 
 Dry-run output may show the exact command that would be used:
@@ -219,14 +225,28 @@ brew install --cask --adopt firefox
 BrewMatch does not run that command unless all safety gates pass:
 
 - `--execute` is present.
+- `--dry-run` is not present.
 - Exactly one cask token or app selector is provided.
 - Selected entry is `proposed`.
 - Selected entry is `low` risk.
 - Selected match confidence is `high`.
 - Selected app is not ignored, not App Store, not system, and not ambiguous.
 - Confirmation phrase exactly matches `--confirm "adopt <token>"`.
-- Homebrew is available.
+- User also passes `--i-understand-this-may-change-my-system`.
+- If stdin is interactive, user types exact final prompt response `ADOPT`.
 - Command arguments are exactly `["install", "--cask", "--adopt", "<token>"]`.
+
+Before execution, BrewMatch also runs preflight checks:
+
+- Homebrew is available.
+- The selected cask token resolves through Homebrew metadata or cask search.
+- The app still exists at the scanned path.
+- The app is not already Homebrew-managed.
+- The bundle identifier still matches the scanned app, when available.
+
+`--require-clean-plan` adds stricter execution gates. It blocks execution when the current scan has review-required entries, warnings, or the selected app has alternative candidates. In dry-run mode, `--explain` shows this gate without executing.
+
+`--audit-log <path>` writes a JSON audit object for dry-run, blocked, and executed runs. It refuses to overwrite existing files unless `--force` is passed.
 
 Blocked or dry-run output always includes:
 

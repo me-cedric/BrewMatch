@@ -419,7 +419,7 @@ import Testing
     let response = AdoptCoordinator().run(
         plan: adoptPlan(),
         options: AdoptOptions(cask: "firefox"),
-        brewAvailable: true,
+        preflight: MockPreflightChecker.passing(),
         executor: executor
     )
     #expect(!response.executed)
@@ -431,7 +431,7 @@ import Testing
     let response = AdoptCoordinator().run(
         plan: adoptPlan(),
         options: AdoptOptions(cask: "firefox"),
-        brewAvailable: true,
+        preflight: MockPreflightChecker.passing(),
         executor: MockBrewExecutor()
     )
     let json = try AdoptRenderer().json(response)
@@ -439,12 +439,29 @@ import Testing
     #expect(json.contains("\"executed\" : false"))
 }
 
+@Test func adoptCLIOptionsParseSafetyFlags() throws {
+    let options = try CLIOptions.parse([
+        "adopt",
+        "--dry-run",
+        "--execute",
+        "--i-understand-this-may-change-my-system",
+        "--require-clean-plan",
+        "--audit-log",
+        "/tmp/audit.json",
+    ])
+    #expect(options.dryRun)
+    #expect(options.execute)
+    #expect(options.systemChangeAcknowledged)
+    #expect(options.requireCleanPlan)
+    #expect(options.auditLog?.path == "/tmp/audit.json")
+}
+
 @Test func adoptExecuteWithoutConfirmBlocks() {
     let executor = MockBrewExecutor()
     let response = AdoptCoordinator().run(
         plan: adoptPlan(),
         options: AdoptOptions(cask: "firefox", execute: true),
-        brewAvailable: true,
+        preflight: MockPreflightChecker.passing(),
         executor: executor
     )
     #expect(response.blocked)
@@ -457,7 +474,7 @@ import Testing
     let response = AdoptCoordinator().run(
         plan: adoptPlan(),
         options: AdoptOptions(cask: "firefox", execute: true, confirm: "adopt nope"),
-        brewAvailable: true,
+        preflight: MockPreflightChecker.passing(),
         executor: executor
     )
     #expect(response.blocked)
@@ -468,8 +485,8 @@ import Testing
     let executor = MockBrewExecutor(stdout: "ok", stderr: "warn", exitCode: 0)
     let response = AdoptCoordinator().run(
         plan: adoptPlan(),
-        options: AdoptOptions(cask: "firefox", execute: true, confirm: "adopt firefox"),
-        brewAvailable: true,
+        options: AdoptOptions(cask: "firefox", execute: true, confirm: "adopt firefox", systemChangeAcknowledged: true),
+        preflight: MockPreflightChecker.passing(),
         executor: executor
     )
     #expect(response.executed)
@@ -480,8 +497,8 @@ import Testing
     let executor = MockBrewExecutor()
     _ = AdoptCoordinator().run(
         plan: adoptPlan(),
-        options: AdoptOptions(cask: "firefox", execute: true, confirm: "adopt firefox"),
-        brewAvailable: true,
+        options: AdoptOptions(cask: "firefox", execute: true, confirm: "adopt firefox", systemChangeAcknowledged: true),
+        preflight: MockPreflightChecker.passing(),
         executor: executor
     )
     #expect(executor.calls.first == ["install", "--cask", "--adopt", "firefox"])
@@ -491,7 +508,7 @@ import Testing
     let response = AdoptCoordinator().run(
         plan: adoptPlan(),
         options: AdoptOptions(cask: "token", execute: true, confirm: "adopt token"),
-        brewAvailable: true,
+        preflight: MockPreflightChecker.passing(),
         executor: MockBrewExecutor()
     )
     #expect(response.blocked)
@@ -502,7 +519,7 @@ import Testing
     let response = AdoptCoordinator().run(
         plan: adoptPlan(),
         options: AdoptOptions(cask: "cursor-editor", execute: true, confirm: "adopt cursor-editor"),
-        brewAvailable: true,
+        preflight: MockPreflightChecker.passing(),
         executor: MockBrewExecutor()
     )
     #expect(response.blocked)
@@ -513,7 +530,7 @@ import Testing
     let response = AdoptCoordinator().run(
         plan: adoptPlan(),
         options: AdoptOptions(app: "Cursor.app", execute: true, confirm: "adopt cursor"),
-        brewAvailable: true,
+        preflight: MockPreflightChecker.passing(),
         executor: MockBrewExecutor()
     )
     #expect(response.blocked)
@@ -526,8 +543,8 @@ import Testing
         let response = AdoptCoordinator().run(
             plan: plan,
             options: AdoptOptions(cask: token, execute: true, confirm: "adopt \(token)"),
-            brewAvailable: true,
-            executor: MockBrewExecutor()
+        preflight: MockPreflightChecker.passing(),
+        executor: MockBrewExecutor()
         )
         #expect(response.blocked)
         #expect(response.blockReasons.contains("selected action is not proposed"))
@@ -538,7 +555,7 @@ import Testing
     let response = AdoptCoordinator().run(
         plan: adoptPlan(),
         options: AdoptOptions(cask: "firefox"),
-        brewAvailable: true,
+        preflight: MockPreflightChecker.passing(),
         executor: MockBrewExecutor()
     )
     #expect(response.selectedAction?.selectedCandidate?.token == "firefox")
@@ -548,7 +565,7 @@ import Testing
     let response = AdoptCoordinator().run(
         plan: adoptPlan(),
         options: AdoptOptions(app: "Firefox.app"),
-        brewAvailable: true,
+        preflight: MockPreflightChecker.passing(),
         executor: MockBrewExecutor()
     )
     #expect(response.selectedAction?.appName == "Firefox.app")
@@ -558,7 +575,7 @@ import Testing
     let response = AdoptCoordinator().run(
         plan: adoptPlan(),
         options: AdoptOptions(app: "org.mozilla.firefox"),
-        brewAvailable: true,
+        preflight: MockPreflightChecker.passing(),
         executor: MockBrewExecutor()
     )
     #expect(response.selectedAction?.bundleIdentifier == "org.mozilla.firefox")
@@ -568,7 +585,7 @@ import Testing
     let response = AdoptCoordinator().run(
         plan: adoptPlan(),
         options: AdoptOptions(cask: "cursor-editor", execute: true, confirm: "adopt cursor-editor"),
-        brewAvailable: true,
+        preflight: MockPreflightChecker.passing(),
         executor: MockBrewExecutor()
     )
     let json = try AdoptRenderer().json(response)
@@ -579,13 +596,188 @@ import Testing
 @Test func adoptSuccessfulMockExecutionIncludesOutputFields() {
     let response = AdoptCoordinator().run(
         plan: adoptPlan(),
-        options: AdoptOptions(cask: "firefox", execute: true, confirm: "adopt firefox"),
-        brewAvailable: true,
+        options: AdoptOptions(cask: "firefox", execute: true, confirm: "adopt firefox", systemChangeAcknowledged: true),
+        preflight: MockPreflightChecker.passing(),
         executor: MockBrewExecutor(stdout: "installed", stderr: "notice", exitCode: 0)
     )
     #expect(response.stdout == "installed")
     #expect(response.stderr == "notice")
     #expect(response.exitCode == 0)
+}
+
+@Test func adoptExecuteBlockedWithoutSystemChangeFlag() {
+    let executor = MockBrewExecutor()
+    let response = AdoptCoordinator().run(
+        plan: adoptPlan(),
+        options: AdoptOptions(cask: "firefox", execute: true, confirm: "adopt firefox"),
+        preflight: MockPreflightChecker.passing(),
+        executor: executor
+    )
+    #expect(response.blockReasons.contains("system-change acknowledgement required: --i-understand-this-may-change-my-system"))
+    #expect(executor.calls.isEmpty)
+}
+
+@Test func adoptExecuteAllowedOnlyWithAllFlags() {
+    let executor = MockBrewExecutor()
+    let response = AdoptCoordinator().run(
+        plan: cleanAdoptPlan(),
+        options: AdoptOptions(
+            cask: "firefox",
+            execute: true,
+            confirm: "adopt firefox",
+            systemChangeAcknowledged: true,
+            requireCleanPlan: true
+        ),
+        preflight: MockPreflightChecker.passing(),
+        executor: executor
+    )
+    #expect(response.executed)
+    #expect(response.blockReasons.isEmpty)
+    #expect(executor.calls == [["install", "--cask", "--adopt", "firefox"]])
+}
+
+@Test func adoptDryRunAndExecuteConflictBlocks() {
+    let executor = MockBrewExecutor()
+    let response = AdoptCoordinator().run(
+        plan: adoptPlan(),
+        options: AdoptOptions(cask: "firefox", execute: true, dryRun: true, confirm: "adopt firefox", systemChangeAcknowledged: true),
+        preflight: MockPreflightChecker.passing(),
+        executor: executor
+    )
+    #expect(response.blockReasons.contains("Cannot pass both --dry-run and --execute."))
+    #expect(executor.calls.isEmpty)
+}
+
+@Test func adoptRequireCleanPlanBlocksReviewRequiredEntries() {
+    let response = AdoptCoordinator().run(
+        plan: adoptPlan(),
+        options: AdoptOptions(cask: "firefox", execute: true, confirm: "adopt firefox", systemChangeAcknowledged: true, requireCleanPlan: true),
+        preflight: MockPreflightChecker.passing(),
+        executor: MockBrewExecutor()
+    )
+    #expect(response.blockReasons.contains("require-clean-plan failed: reviewRequired entries exist"))
+}
+
+@Test func adoptRequireCleanPlanBlocksWarnings() {
+    var plan = cleanAdoptPlan()
+    plan.warnings = ["Homebrew not found. Homebrew matching unavailable."]
+    let response = AdoptCoordinator().run(
+        plan: plan,
+        options: AdoptOptions(cask: "firefox", execute: true, confirm: "adopt firefox", systemChangeAcknowledged: true, requireCleanPlan: true),
+        preflight: MockPreflightChecker.passing(),
+        executor: MockBrewExecutor()
+    )
+    #expect(response.blockReasons.contains("require-clean-plan failed: plan warnings exist"))
+}
+
+@Test func adoptRequireCleanPlanBlocksAlternativeCandidates() {
+    var plan = cleanAdoptPlan()
+    plan.proposedActions[0].alternativeCandidates = [CaskMatch(token: "firefox-beta", confidence: .high, reason: "alternate")]
+    let response = AdoptCoordinator().run(
+        plan: plan,
+        options: AdoptOptions(cask: "firefox", execute: true, confirm: "adopt firefox", systemChangeAcknowledged: true, requireCleanPlan: true),
+        preflight: MockPreflightChecker.passing(),
+        executor: MockBrewExecutor()
+    )
+    #expect(response.blockReasons.contains("require-clean-plan failed: selected app has alternative candidates"))
+}
+
+@Test func adoptPreflightFailuresBlockExecution() {
+    let cases = [
+        ("Homebrew not found", "brew exists"),
+        ("cask token could not be resolved: firefox", "cask exists"),
+        ("app no longer exists at scanned path: /Applications/Firefox.app", "app exists"),
+        ("selected app is already Homebrew-managed", "not Homebrew-managed"),
+        ("bundle identifier changed from org.mozilla.firefox to org.example.changed", "bundle identifier unchanged"),
+    ]
+
+    for (reason, name) in cases {
+        let executor = MockBrewExecutor()
+        let response = AdoptCoordinator().run(
+            plan: cleanAdoptPlan(),
+            options: AdoptOptions(cask: "firefox", execute: true, confirm: "adopt firefox", systemChangeAcknowledged: true),
+            preflight: MockPreflightChecker.failing(reason, name: name),
+            executor: executor
+        )
+        #expect(response.blockReasons.contains(reason))
+        #expect(executor.calls.isEmpty)
+    }
+}
+
+@Test func adoptAuditLogWrittenForDryRun() throws {
+    let url = try temporaryDirectory().appendingPathComponent("adopt-audit.json")
+    var response = AdoptCoordinator().run(
+        plan: adoptPlan(),
+        options: AdoptOptions(cask: "firefox"),
+        preflight: MockPreflightChecker.passing(),
+        executor: MockBrewExecutor()
+    )
+    response.auditLogPath = url.path
+    try AdoptAuditLogger().write(response, to: url, force: false)
+    let content = try String(contentsOf: url, encoding: .utf8)
+    #expect(content.contains("\"executionMode\" : \"dry-run\""))
+    #expect(content.contains("\"auditLogPath\""))
+    #expect(content.contains("adopt-audit.json"))
+}
+
+@Test func adoptAuditLogWrittenForBlockedExecution() throws {
+    let url = try temporaryDirectory().appendingPathComponent("blocked-audit.json")
+    var response = AdoptCoordinator().run(
+        plan: adoptPlan(),
+        options: AdoptOptions(cask: "firefox", execute: true, confirm: "adopt firefox"),
+        preflight: MockPreflightChecker.passing(),
+        executor: MockBrewExecutor()
+    )
+    response.auditLogPath = url.path
+    try AdoptAuditLogger().write(response, to: url, force: false)
+    let content = try String(contentsOf: url, encoding: .utf8)
+    #expect(content.contains("\"blocked\" : true"))
+    #expect(content.contains("system-change acknowledgement required"))
+}
+
+@Test func adoptAuditLogOverwriteGuard() throws {
+    let url = try temporaryDirectory().appendingPathComponent("audit.json")
+    try "{}".write(to: url, atomically: true, encoding: .utf8)
+    var response = AdoptCoordinator().run(
+        plan: adoptPlan(),
+        options: AdoptOptions(cask: "firefox"),
+        preflight: MockPreflightChecker.passing(),
+        executor: MockBrewExecutor()
+    )
+    response.auditLogPath = url.path
+
+    do {
+        try AdoptAuditLogger().write(response, to: url, force: false)
+        Issue.record("Expected overwrite refusal")
+    } catch CLIError.outputExists(let path) {
+        #expect(path == url.path)
+    }
+}
+
+@Test func adoptJSONIncludesSafetyPreflightAndAuditPath() throws {
+    var response = AdoptCoordinator().run(
+        plan: cleanAdoptPlan(),
+        options: AdoptOptions(cask: "firefox", execute: true, confirm: "adopt firefox", systemChangeAcknowledged: true),
+        preflight: MockPreflightChecker.passing(),
+        executor: MockBrewExecutor()
+    )
+    response.auditLogPath = "/tmp/brewmatch-audit.json"
+    let json = try AdoptRenderer().json(response)
+    #expect(json.contains("\"safetyGates\""))
+    #expect(json.contains("\"preflightChecks\""))
+    #expect(json.contains("\"auditLogPath\" : \"\\/tmp\\/brewmatch-audit.json\""))
+    #expect(json.contains("\"interactionRequired\" : false"))
+}
+
+@Test func adoptNoExecutorCallWhenBlocked() {
+    let executor = MockBrewExecutor()
+    _ = AdoptCoordinator().run(
+        plan: cleanAdoptPlan(),
+        options: AdoptOptions(cask: "firefox", execute: true, confirm: "adopt firefox", systemChangeAcknowledged: true),
+        preflight: MockPreflightChecker.failing("Homebrew not found", name: "brew exists"),
+        executor: executor
+    )
+    #expect(executor.calls.isEmpty)
 }
 
 private struct MockBrewClient: BrewClient {
@@ -619,6 +811,28 @@ private final class MockBrewExecutor: BrewExecutor {
     }
 }
 
+private struct MockPreflightChecker: AdoptPreflightChecking {
+    var checks: [AdoptPreflightCheck]
+
+    static func passing() -> MockPreflightChecker {
+        MockPreflightChecker(checks: [
+            AdoptPreflightCheck(name: "brew exists", passed: true, reason: nil),
+            AdoptPreflightCheck(name: "cask exists", passed: true, reason: nil),
+            AdoptPreflightCheck(name: "app exists", passed: true, reason: nil),
+            AdoptPreflightCheck(name: "not Homebrew-managed", passed: true, reason: nil),
+            AdoptPreflightCheck(name: "bundle identifier unchanged", passed: true, reason: nil),
+        ])
+    }
+
+    static func failing(_ reason: String, name: String = "preflight") -> MockPreflightChecker {
+        MockPreflightChecker(checks: [AdoptPreflightCheck(name: name, passed: false, reason: reason)])
+    }
+
+    func checks(for entry: MigrationPlanEntry) -> [AdoptPreflightCheck] {
+        checks
+    }
+}
+
 private func adoptPlan() -> MigrationPlan {
     MigrationPlanner().build(
         ScanResult(summary: emptySummary(10), warnings: [], reports: [
@@ -640,6 +854,15 @@ private func adoptPlan() -> MigrationPlan {
             ], matchReason: "system app"),
         ]),
         options: MigrationPlanOptions(includeMedium: true, withCommands: true)
+    )
+}
+
+private func cleanAdoptPlan() -> MigrationPlan {
+    MigrationPlanner().build(
+        ScanResult(summary: emptySummary(1), warnings: [], reports: [
+            report("Firefox.app", bundleID: "org.mozilla.firefox", token: "firefox", confidence: .high, reason: "exact bundle identifier match"),
+        ]),
+        options: MigrationPlanOptions(withCommands: true)
     )
 }
 

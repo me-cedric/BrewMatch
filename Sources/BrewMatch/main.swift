@@ -1,4 +1,5 @@
 import Foundation
+import Darwin
 
 enum BrewMatchCLI {
     static func main() throws {
@@ -14,7 +15,8 @@ enum BrewMatchCLI {
         ]
 
         let ignoreList = try IgnoreList.load(from: options.ignoreFile)
-        let result = Reporter().build(apps: AppScanner().scan(roots: roots), brew: LocalBrewClient(), ignoreList: ignoreList)
+        let brew = LocalBrewClient()
+        let result = Reporter().build(apps: AppScanner().scan(roots: roots), brew: brew, ignoreList: ignoreList)
         let exporter = Exporter()
 
         if options.command == "plan" || options.command == "adopt" {
@@ -28,20 +30,30 @@ enum BrewMatchCLI {
             ))
 
             if options.command == "adopt" {
-                let response = AdoptCoordinator().run(
+                let prompt = adoptionPromptState(options)
+                var response = AdoptCoordinator().run(
                     plan: plan,
                     options: AdoptOptions(
                         cask: options.cask,
                         app: options.app,
                         execute: options.execute,
+                        dryRun: options.dryRun,
                         confirm: options.confirm,
                         json: options.json,
                         strict: options.strict,
-                        explain: options.explain
+                        explain: options.explain,
+                        systemChangeAcknowledged: options.systemChangeAcknowledged,
+                        requireCleanPlan: options.requireCleanPlan,
+                        interactionRequired: prompt.required,
+                        interactiveConfirmed: prompt.confirmed
                     ),
-                    brewAvailable: LocalBrewClient().isAvailable,
+                    preflight: LocalAdoptPreflightChecker(brew: brew),
                     executor: LocalBrewExecutor()
                 )
+                if let auditLog = options.auditLog {
+                    response.auditLogPath = auditLog.path
+                    try AdoptAuditLogger().write(response, to: auditLog, force: options.force)
+                }
                 let content = options.json ? try AdoptRenderer().json(response) : AdoptRenderer().text(response, explain: options.explain)
                 if let output = options.output {
                     try exporter.write(content, to: output, force: options.force)
@@ -91,6 +103,21 @@ enum BrewMatchCLI {
             print(Reporter().text(result))
         }
     }
+
+    private static func adoptionPromptState(_ options: CLIOptions) -> (required: Bool, confirmed: Bool) {
+        guard
+            options.command == "adopt",
+            options.execute,
+            options.systemChangeAcknowledged,
+            options.confirm != nil,
+            options.cask != nil || options.app != nil,
+            isatty(STDIN_FILENO) == 1
+        else {
+            return (false, true)
+        }
+        fputs("Type ADOPT to continue: ", stderr)
+        return (true, readLine() == "ADOPT")
+    }
 }
 
 enum CLIError: Error, CustomStringConvertible, Equatable {
@@ -103,7 +130,7 @@ enum CLIError: Error, CustomStringConvertible, Equatable {
     var description: String {
         switch self {
         case .usage:
-            return "Usage: brewmatch --version\n       brewmatch version\n       brewmatch scan [--json] [--output <path>] [--force] [--ignore-file <path>]\n       brewmatch report [--output <path>] [--force] [--ignore-file <path>]\n       brewmatch brewfile [--include-medium] [--include-low] [--include-ambiguous] [--with-comments] [--no-header] [--output <path>] [--force] [--ignore-file <path>]\n       brewmatch suggestions [brewfile options]\n       brewmatch plan [--json] [--strict] [--explain] [--include-medium] [--include-low] [--include-ambiguous] [--with-commands] [--output <path>] [--force] [--ignore-file <path>]\n       brewmatch adopt [--cask <token>] [--app <name-or-bundle-id>] [--execute] [--confirm <phrase>] [--json] [--strict] [--explain] [--output <path>] [--force] [--ignore-file <path>]"
+            return "Usage: brewmatch --version\n       brewmatch version\n       brewmatch scan [--json] [--output <path>] [--force] [--ignore-file <path>]\n       brewmatch report [--output <path>] [--force] [--ignore-file <path>]\n       brewmatch brewfile [--include-medium] [--include-low] [--include-ambiguous] [--with-comments] [--no-header] [--output <path>] [--force] [--ignore-file <path>]\n       brewmatch suggestions [brewfile options]\n       brewmatch plan [--json] [--strict] [--explain] [--include-medium] [--include-low] [--include-ambiguous] [--with-commands] [--output <path>] [--force] [--ignore-file <path>]\n       brewmatch adopt [--cask <token>] [--app <name-or-bundle-id>] [--dry-run] [--execute] [--confirm <phrase>] [--i-understand-this-may-change-my-system] [--require-clean-plan] [--audit-log <path>] [--json] [--strict] [--explain] [--output <path>] [--force] [--ignore-file <path>]"
         case .missingValue(let flag):
             return "Missing value for \(flag)."
         case .unsupportedOutputExtension(let ext):

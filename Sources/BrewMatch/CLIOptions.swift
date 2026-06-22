@@ -17,7 +17,11 @@ struct CLIOptions {
     var cask: String?
     var app: String?
     var execute: Bool
+    var dryRun: Bool
     var confirm: String?
+    var systemChangeAcknowledged: Bool
+    var requireCleanPlan: Bool
+    var auditLog: URL?
 
     static func parse(_ arguments: [String]) throws -> CLIOptions {
         var args = arguments
@@ -44,7 +48,11 @@ struct CLIOptions {
         var cask: String?
         var app: String?
         var execute = false
+        var dryRun = false
         var confirm: String?
+        var systemChangeAcknowledged = false
+        var requireCleanPlan = false
+        var auditLog: URL?
 
         while let arg = args.first {
             args.removeFirst()
@@ -69,6 +77,12 @@ struct CLIOptions {
                 explain = true
             case "--execute":
                 execute = true
+            case "--dry-run":
+                dryRun = true
+            case "--i-understand-this-may-change-my-system":
+                systemChangeAcknowledged = true
+            case "--require-clean-plan":
+                requireCleanPlan = true
             case "--cask":
                 guard let value = args.first else { throw CLIError.missingValue("--cask") }
                 args.removeFirst()
@@ -91,6 +105,10 @@ struct CLIOptions {
                 guard let value = args.first else { throw CLIError.missingValue("--ignore-file") }
                 args.removeFirst()
                 ignoreFile = URL(fileURLWithPath: value)
+            case "--audit-log":
+                guard let value = args.first else { throw CLIError.missingValue("--audit-log") }
+                args.removeFirst()
+                auditLog = URL(fileURLWithPath: value)
             default:
                 throw CLIError.usage
             }
@@ -113,7 +131,11 @@ struct CLIOptions {
             cask: cask,
             app: app,
             execute: execute,
-            confirm: confirm
+            dryRun: dryRun,
+            confirm: confirm,
+            systemChangeAcknowledged: systemChangeAcknowledged,
+            requireCleanPlan: requireCleanPlan,
+            auditLog: auditLog
         )
     }
 
@@ -135,7 +157,11 @@ struct CLIOptions {
             cask: nil,
             app: nil,
             execute: false,
-            confirm: nil
+            dryRun: false,
+            confirm: nil,
+            systemChangeAcknowledged: false,
+            requireCleanPlan: false,
+            auditLog: nil
         )
     }
 

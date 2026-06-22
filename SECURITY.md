@@ -11,11 +11,15 @@ BrewMatch is local-first and read-only.
 - No network access except local Homebrew commands such as `brew list`, `brew search`, and `brew info`.
 - JSON and text reports are generated locally.
 
-`brewmatch adopt` is dry-run by default. The only guarded future mutation path is `brew install --cask --adopt <token>`, and it requires `--execute`, an exact selector, a low-risk proposed candidate, high confidence, Homebrew availability, and the exact confirmation phrase `--confirm "adopt <token>"`.
+`brewmatch adopt` is dry-run by default. The only guarded mutation path is `brew install --cask --adopt <token>`, and it requires `--execute`, an exact selector, a low-risk proposed candidate, high confidence, Homebrew availability, the exact confirmation phrase `--confirm "adopt <token>"`, and `--i-understand-this-may-change-my-system`.
+
+Adopt execution also performs preflight checks before calling Homebrew. BrewMatch does not delete, move, or directly modify applications.
 
 ## Sensitive Data
 
 BrewMatch reports can contain app names, bundle identifiers, versions, and local filesystem paths. These may reveal private workflow or account details.
+
+Audit logs may contain app names, app paths, bundle identifiers, cask tokens, command arguments, stdout, stderr, and exit codes. Review and sanitize audit logs before sharing them.
 
 Before sharing output:
 

@@ -7,6 +7,13 @@
 - Added guarded `brewmatch adopt` command.
 - Kept dry-run as default behavior.
 - Added `--execute` and exact `--confirm "adopt <token>"` safety gates.
+- Added explicit `--i-understand-this-may-change-my-system` execution gate.
+- Added `--dry-run`, including safe conflict handling with `--execute`.
+- Added `--require-clean-plan` for blocking execution when review-required entries, warnings, or selected alternatives exist.
+- Added preflight checks for Homebrew availability, cask resolution, app existence, Homebrew-managed status, and bundle identifier drift.
+- Added optional `--audit-log <path>` JSON audit output with overwrite protection.
+- Added JSON safety gate and preflight check fields.
+- Added final interactive `ADOPT` prompt for TTY execution.
 - Added executor abstraction for future `brew install --cask --adopt <token>` calls.
 - Added JSON adopt responses with execution mode, command args, block reasons, and mocked execution result fields.
 - Kept real adoption out of tests and default behavior.
