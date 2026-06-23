@@ -7,6 +7,8 @@
    ```sh
    ./scripts/validate.sh
    ./scripts/smoke-release.sh
+   swift build -c release
+   .build/release/brewmatch --version
    ```
 
 2. Commit release prep:

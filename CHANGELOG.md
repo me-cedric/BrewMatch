@@ -2,11 +2,12 @@
 
 ## Unreleased
 
-### v0.3.0 foundation
+## 0.3.0 - 2026-06-23
 
 - Added guarded `brewmatch adopt` command.
 - Kept dry-run as default behavior.
-- Added `--execute` and exact `--confirm "adopt <token>"` safety gates.
+- Added execute mode behind multiple safety gates.
+- Added exact confirmation phrase `--confirm "adopt <token>"`.
 - Added explicit `--i-understand-this-may-change-my-system` execution gate.
 - Added `--dry-run`, including safe conflict handling with `--execute`.
 - Added `--require-clean-plan` for blocking execution when review-required entries, warnings, or selected alternatives exist.
@@ -16,7 +17,7 @@
 - Added final interactive `ADOPT` prompt for TTY execution.
 - Added executor abstraction for future `brew install --cask --adopt <token>` calls.
 - Added JSON adopt responses with execution mode, command args, block reasons, and mocked execution result fields.
-- Kept real adoption out of tests and default behavior.
+- Kept default behavior dry-run and avoided direct app file modification.
 
 ## 0.2.0 - 2026-06-21
 

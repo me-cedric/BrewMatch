@@ -1,7 +1,7 @@
 <div align="center">
 <br />
 <h1>BrewMatch</h1>
-<p><strong>Read-only macOS app scanner for Homebrew Cask migration.</strong></p>
+<p><strong>Safety-first macOS app scanner for Homebrew Cask migration.</strong></p>
 <p>
 <a href="https://github.com/me-cedric/BrewMatch/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/me-cedric/BrewMatch/ci.yml?branch=main&label=CI&logo=github&style=flat" alt="CI Status" /></a>
 <a href="LICENSE"><img src="https://img.shields.io/github/license/me-cedric/BrewMatch?label=License&style=flat" alt="MIT License" /></a>
@@ -18,7 +18,7 @@ It is designed for local-first inventory and migration planning. It is dry-run b
 
 ## Status
 
-BrewMatch is early pre-1.0 software. Current version: `0.2.0`.
+BrewMatch is early pre-1.0 software. Current version: `0.3.0`.
 
 The scanner, report output, ignore file, and Brewfile suggestion export are functional and covered by unit tests. Matching remains heuristic and should be reviewed before running `brew bundle`.
 
@@ -99,13 +99,13 @@ No Homebrew cask or tap exists yet.
 | `brewmatch brewfile` | Print suggested Brewfile content. |
 | `brewmatch brewfile --with-comments --output Brewfile` | Export commented Brewfile suggestions. |
 | `brewmatch suggestions` | Alias for `brewmatch brewfile --with-comments`. |
-| `brewmatch plan` | Print a dry-run migration plan. No actions are executed. v0.2 still does not adopt apps. |
+| `brewmatch plan` | Print a dry-run migration plan. No actions are executed. |
 | `brewmatch plan --strict` | Include only low-risk proposed entries; move other candidates to review. |
 | `brewmatch plan --explain` | Include detailed reasoning, source classification, and risk notes. |
 | `brewmatch plan --with-commands` | Include proposed commands as dry-run text only. |
 | `brewmatch adopt` | Dry-run adopt planning. No actions are executed by default. |
 | `brewmatch adopt --cask firefox` | Show the selected dry-run adoption candidate. |
-| `brewmatch adopt --dry-run --cask firefox` | Explicit dry-run; same as default. |
+| `brewmatch adopt --cask firefox --dry-run` | Explicit dry-run; same as default. |
 | `brewmatch adopt --cask firefox --execute --confirm "adopt firefox" --i-understand-this-may-change-my-system` | Execute only if every safety gate and preflight check passes. |
 
 `suggestions` is an alias for `brewfile --with-comments`.
@@ -207,19 +207,26 @@ These commands are never executed by BrewMatch. See [docs/plan-json-schema.md](d
 
 ```sh
 brewmatch adopt
-brewmatch adopt --dry-run
 brewmatch adopt --cask firefox
+brewmatch adopt --cask firefox --dry-run
 brewmatch adopt --app Firefox.app
 brewmatch adopt --json --output adopt.json --force
 brewmatch adopt --cask firefox --audit-log adopt-audit.json
 brewmatch adopt --cask firefox --require-clean-plan --explain
 brewmatch adopt --cask firefox --execute --confirm "adopt firefox" --i-understand-this-may-change-my-system
+brewmatch adopt --cask firefox --execute --confirm "adopt firefox" --i-understand-this-may-change-my-system --require-clean-plan --audit-log ./adopt-audit.json
 ```
 
 Dry-run output may show the exact command that would be used:
 
 ```sh
 brew install --cask --adopt firefox
+```
+
+BrewMatch never deletes or moves apps directly. Real execution only shells out to:
+
+```sh
+brew install --cask --adopt <token>
 ```
 
 BrewMatch does not run that command unless all safety gates pass:

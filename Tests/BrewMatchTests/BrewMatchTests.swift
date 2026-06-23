@@ -280,8 +280,8 @@ import Testing
 }
 
 @Test func versionProviderAndOptions() throws {
-    #expect(BrewMatchVersion.value == "0.2.0")
-    #expect(BrewMatchVersion.display == "BrewMatch 0.2.0")
+    #expect(BrewMatchVersion.value == "0.3.0")
+    #expect(BrewMatchVersion.display == "BrewMatch 0.3.0")
     #expect(try CLIOptions.parse(["--version"]).command == "version")
     #expect(try CLIOptions.parse(["version"]).command == "version")
 }
@@ -328,7 +328,7 @@ import Testing
     let json = try MigrationPlanRenderer().json(plan)
     #expect(json.contains("\"safetyMode\" : \"dry-run\""))
     #expect(json.contains("\"schemaVersion\" : \"1\""))
-    #expect(json.contains("\"version\" : \"0.2.0\""))
+    #expect(json.contains("\"version\" : \"0.3.0\""))
 }
 
 @Test func planWithCommandsRendersAdoptCommand() {

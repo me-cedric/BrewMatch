@@ -1,13 +1,13 @@
 # Security Policy
 
-BrewMatch is local-first and read-only.
+BrewMatch is local-first and dry-run by default.
 
 ## Security Model
 
 - No telemetry.
 - No credentials.
 - No background service.
-- No destructive app actions.
+- No direct app delete, move, or file modification actions.
 - No network access except local Homebrew commands such as `brew list`, `brew search`, and `brew info`.
 - JSON and text reports are generated locally.
 
