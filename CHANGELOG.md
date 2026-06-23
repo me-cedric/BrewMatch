@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### v0.4.0 foundation
+
+- Added `brewmatch doctor` for local readiness checks without app changes.
+- Added doctor JSON output with checks, summary, warnings, and failures.
+- Added `brewmatch report --explain` confidence reasoning output.
+- Added `brewmatch scan --include-system` to include `/System/Applications` in scan roots while keeping system apps skipped.
+- Added copyable command sections for low-risk proposed plan/adopt commands when `--with-commands` is passed.
+- Kept doctor and smoke checks free of real adoption execution.
+
 ## 0.3.0 - 2026-06-23
 
 - Added guarded `brewmatch adopt` command.

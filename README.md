@@ -51,6 +51,7 @@ The scanner, report output, ignore file, and Brewfile suggestion export are func
 - Supports ignore files by bundle identifier, app name, or absolute path.
 - Exports suggested Brewfile content for review.
 - Keeps ambiguous suggestions commented, never active.
+- Checks local readiness with `brewmatch doctor`.
 
 ## Install
 
@@ -92,10 +93,14 @@ No Homebrew cask or tap exists yet.
 
 | Command | Purpose |
 | --- | --- |
+| `brewmatch doctor` | Check local readiness without modifying apps. |
+| `brewmatch doctor --json` | Print machine-readable doctor checks. |
 | `brewmatch scan` | Scan apps and print a text report. |
 | `brewmatch scan --json` | Scan apps and print JSON. |
+| `brewmatch scan --include-system` | Include `/System/Applications` in scan roots; system apps remain skipped. |
 | `brewmatch scan --output report.json` | Export JSON report based on `.json` extension. |
 | `brewmatch report --output report.txt --force` | Export text report and overwrite existing file. |
+| `brewmatch report --explain` | Include confidence reasoning and candidate match reasons. |
 | `brewmatch brewfile` | Print suggested Brewfile content. |
 | `brewmatch brewfile --with-comments --output Brewfile` | Export commented Brewfile suggestions. |
 | `brewmatch suggestions` | Alias for `brewmatch brewfile --with-comments`. |
@@ -122,6 +127,28 @@ JSON output includes raw app fields, match reasons, warnings, and summary counts
 ```sh
 brewmatch scan --json
 ```
+
+## Doctor
+
+`brewmatch doctor` checks local readiness without modifying applications.
+
+```sh
+brewmatch doctor
+brewmatch doctor --json
+brewmatch doctor --output doctor.json --json --force
+```
+
+Doctor checks macOS version, architecture, Homebrew path/version, cask metadata support, app directory readability, ignore file validity, temporary output writing, and whether an app scan can run. It may create and remove one temporary file in the system temp directory for the write check.
+
+## Scan And Report
+
+`brewmatch report --explain` adds confidence details:
+
+```sh
+brewmatch report --explain
+```
+
+`brewmatch scan --include-system` adds `/System/Applications` to scan roots. System apps are still classified as skipped system apps and are never adopt candidates.
 
 ## Brewfile Export
 
@@ -201,6 +228,8 @@ Exact adopt commands are shown only when `--with-commands` is passed. Proposed e
 
 These commands are never executed by BrewMatch. See [docs/plan-json-schema.md](docs/plan-json-schema.md) for machine-readable plan fields.
 
+When `--with-commands` is passed, plan output also includes `Copyable commands` with only low-risk proposed commands. Review-required commands stay commented and out of that section.
+
 ## Adopt
 
 `brewmatch adopt` is a guarded foundation for future Homebrew Cask adoption. Default behavior is dry-run.
@@ -213,6 +242,7 @@ brewmatch adopt --app Firefox.app
 brewmatch adopt --json --output adopt.json --force
 brewmatch adopt --cask firefox --audit-log adopt-audit.json
 brewmatch adopt --cask firefox --require-clean-plan --explain
+brewmatch adopt --cask firefox --with-commands
 brewmatch adopt --cask firefox --execute --confirm "adopt firefox" --i-understand-this-may-change-my-system
 brewmatch adopt --cask firefox --execute --confirm "adopt firefox" --i-understand-this-may-change-my-system --require-clean-plan --audit-log ./adopt-audit.json
 ```
@@ -254,6 +284,8 @@ Before execution, BrewMatch also runs preflight checks:
 `--require-clean-plan` adds stricter execution gates. It blocks execution when the current scan has review-required entries, warnings, or the selected app has alternative candidates. In dry-run mode, `--explain` shows this gate without executing.
 
 `--audit-log <path>` writes a JSON audit object for dry-run, blocked, and executed runs. It refuses to overwrite existing files unless `--force` is passed.
+
+`--with-commands` adds `Copyable commands` for low-risk proposed dry-run commands only. Review-required commands are excluded.
 
 Blocked or dry-run output always includes:
 

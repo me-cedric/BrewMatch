@@ -14,10 +14,10 @@ struct Exporter {
         }
     }
 
-    func render(_ result: ScanResult, format: OutputFormat) throws -> String {
+    func render(_ result: ScanResult, format: OutputFormat, explain: Bool = false) throws -> String {
         switch format {
         case .json: return try Reporter().json(result)
-        case .text: return Reporter().text(result)
+        case .text: return Reporter().text(result, explain: explain)
         }
     }
 

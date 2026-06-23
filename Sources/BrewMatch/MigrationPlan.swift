@@ -230,6 +230,10 @@ struct MigrationPlanRenderer {
 
         append("Proposed:", plan.proposedActions, explain: explain, to: &lines)
         lines.append("")
+        appendCopyableCommands(plan.proposedActions, to: &lines)
+        if plan.proposedActions.contains(where: { $0.commandKind == .active && $0.risk == .low }) {
+            lines.append("")
+        }
         append("Review required:", plan.reviewRequiredActions, explain: explain, to: &lines)
         lines.append("")
         append("Skipped:", plan.skippedActions, explain: explain, to: &lines)
@@ -268,5 +272,15 @@ struct MigrationPlanRenderer {
                 lines.append(contentsOf: entry.reasons.map { "    - \($0)" })
             }
         }
+    }
+
+    private func appendCopyableCommands(_ entries: [MigrationPlanEntry], to lines: inout [String]) {
+        let commands = entries.compactMap { entry -> String? in
+            guard entry.commandKind == .active, entry.status == .proposed, entry.risk == .low else { return nil }
+            return entry.command
+        }
+        guard !commands.isEmpty else { return }
+        lines.append("Copyable commands:")
+        lines.append(contentsOf: commands)
     }
 }

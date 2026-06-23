@@ -22,6 +22,7 @@ struct CLIOptions {
     var systemChangeAcknowledged: Bool
     var requireCleanPlan: Bool
     var auditLog: URL?
+    var includeSystem: Bool
 
     static func parse(_ arguments: [String]) throws -> CLIOptions {
         var args = arguments
@@ -30,7 +31,7 @@ struct CLIOptions {
         }
 
         let command = args.first { !$0.hasPrefix("-") } ?? "scan"
-        guard ["scan", "report", "brewfile", "suggestions", "plan", "adopt", "version"].contains(command) else { throw CLIError.usage }
+        guard ["scan", "report", "brewfile", "suggestions", "plan", "adopt", "doctor", "version"].contains(command) else { throw CLIError.usage }
         args.removeAll { $0 == command }
 
         var json = false
@@ -53,6 +54,7 @@ struct CLIOptions {
         var systemChangeAcknowledged = false
         var requireCleanPlan = false
         var auditLog: URL?
+        var includeSystem = false
 
         while let arg = args.first {
             args.removeFirst()
@@ -83,6 +85,8 @@ struct CLIOptions {
                 systemChangeAcknowledged = true
             case "--require-clean-plan":
                 requireCleanPlan = true
+            case "--include-system":
+                includeSystem = true
             case "--cask":
                 guard let value = args.first else { throw CLIError.missingValue("--cask") }
                 args.removeFirst()
@@ -135,7 +139,8 @@ struct CLIOptions {
             confirm: confirm,
             systemChangeAcknowledged: systemChangeAcknowledged,
             requireCleanPlan: requireCleanPlan,
-            auditLog: auditLog
+            auditLog: auditLog,
+            includeSystem: includeSystem
         )
     }
 
@@ -161,7 +166,8 @@ struct CLIOptions {
             confirm: nil,
             systemChangeAcknowledged: false,
             requireCleanPlan: false,
-            auditLog: nil
+            auditLog: nil,
+            includeSystem: false
         )
     }
 

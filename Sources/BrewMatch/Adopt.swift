@@ -146,6 +146,7 @@ struct AdoptOptions {
     var json = false
     var strict = false
     var explain = false
+    var withCommands = false
     var systemChangeAcknowledged = false
     var requireCleanPlan = false
     var interactionRequired = false
@@ -175,6 +176,7 @@ struct AdoptResponse: Codable, Sendable {
     var preflightChecks: [AdoptPreflightCheck]
     var auditLogPath: String?
     var interactionRequired: Bool
+    var showCopyableCommands: Bool
 }
 
 struct AdoptCoordinator {
@@ -210,7 +212,8 @@ struct AdoptCoordinator {
             safetyGates: safetyGates,
             preflightChecks: preflightChecks,
             auditLogPath: nil,
-            interactionRequired: options.interactionRequired
+            interactionRequired: options.interactionRequired,
+            showCopyableCommands: options.withCommands
         )
     }
 
@@ -352,6 +355,12 @@ struct AdoptRenderer {
             }
         }
 
+        let copyable = copyableCommands(response)
+        if !copyable.isEmpty {
+            lines.append("Copyable commands:")
+            lines.append(contentsOf: copyable)
+        }
+
         if let auditLogPath = response.auditLogPath {
             lines.append("Audit log: \(auditLogPath)")
         }
@@ -392,6 +401,15 @@ struct AdoptRenderer {
             lines.append("  source: \(entry.sourceClassification)")
             lines.append("  reasons:")
             lines.append(contentsOf: entry.reasons.map { "    - \($0)" })
+        }
+    }
+
+    private func copyableCommands(_ response: AdoptResponse) -> [String] {
+        guard response.showCopyableCommands, response.executionMode == "dry-run" else { return [] }
+        let entries = (response.selectedAction.map { [$0] } ?? response.matchingActions)
+        return entries.compactMap { entry in
+            guard entry.status == .proposed, entry.risk == .low, let token = entry.selectedCandidate?.token else { return nil }
+            return "brew install --cask --adopt \(token)"
         }
     }
 }

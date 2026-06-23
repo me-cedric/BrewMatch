@@ -55,7 +55,7 @@ struct Reporter {
         return ScanResult(summary: summary(for: reports), warnings: brew.warnings(), reports: reports)
     }
 
-    func text(_ result: ScanResult) -> String {
+    func text(_ result: ScanResult, explain: Bool = false) -> String {
         let reports = result.reports
         var lines: [String] = ["Found \(result.summary.totalApps) apps.", ""]
 
@@ -82,11 +82,11 @@ struct Reporter {
 
         section("Replaceable by Homebrew:", reports.filter { $0.status == .replaceable }, into: &lines) {
             guard let match = $0.matches.first else { return "✓ \($0.app.fileName)" }
-            return "✓ \(pad($0.app.fileName)) -> \(pad(match.token, 24)) \(match.confidence.rawValue)"
+            return explainLine("✓ \(pad($0.app.fileName)) -> \(pad(match.token, 24)) \(match.confidence.rawValue)", report: $0, explain: explain)
         }
 
         section("Ambiguous candidate:", reports.filter { $0.status == .ambiguous }, into: &lines) {
-            "? \($0.app.fileName) -> \($0.matches.map { "\($0.token) \($0.confidence.rawValue)" }.joined(separator: ", "))"
+            explainLine("? \($0.app.fileName) -> \($0.matches.map { "\($0.token) \($0.confidence.rawValue)" }.joined(separator: ", "))", report: $0, explain: explain)
         }
 
         section("Ignored:", reports.filter { $0.status == .ignored }, into: &lines) {
@@ -133,6 +133,12 @@ struct Reporter {
         lines.append(title)
         lines.append(contentsOf: reports.map(render))
         lines.append("")
+    }
+
+    private func explainLine(_ line: String, report: AppReport, explain: Bool) -> String {
+        guard explain else { return line }
+        let reasons = report.matches.map { "\($0.token): \($0.reason)" }.joined(separator: "; ")
+        return "\(line)\n  reason: \(report.matchReason ?? "unknown")\n  candidates: \(reasons)"
     }
 }
 

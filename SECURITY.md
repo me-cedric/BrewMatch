@@ -11,6 +11,8 @@ BrewMatch is local-first and dry-run by default.
 - No network access except local Homebrew commands such as `brew list`, `brew search`, and `brew info`.
 - JSON and text reports are generated locally.
 
+`brewmatch doctor` performs local readiness checks only. It does not modify applications. If the temporary output check runs, it writes and removes one temporary file in the system temp directory.
+
 `brewmatch adopt` is dry-run by default. The only guarded mutation path is `brew install --cask --adopt <token>`, and it requires `--execute`, an exact selector, a low-risk proposed candidate, high confidence, Homebrew availability, the exact confirmation phrase `--confirm "adopt <token>"`, and `--i-understand-this-may-change-my-system`.
 
 Adopt execution also performs preflight checks before calling Homebrew. BrewMatch does not delete, move, or directly modify applications.

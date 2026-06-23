@@ -2,10 +2,17 @@ import Foundation
 
 protocol BrewClient {
     var isAvailable: Bool { get }
+    var executablePath: String? { get }
     func warnings() -> [String]
+    func version() -> String?
     func installedCasks() -> [CaskMetadata]
     func availableCasks() -> [CaskMetadata]
     func metadata(for token: String) -> CaskMetadata?
+}
+
+extension BrewClient {
+    var executablePath: String? { nil }
+    func version() -> String? { nil }
 }
 
 final class LocalBrewClient: BrewClient {
@@ -19,9 +26,14 @@ final class LocalBrewClient: BrewClient {
     }
 
     var isAvailable: Bool { brewURL != nil }
+    var executablePath: String? { brewURL?.path }
 
     func warnings() -> [String] {
         isAvailable ? [] : ["Homebrew not found. Homebrew matching unavailable."]
+    }
+
+    func version() -> String? {
+        runLines(["--version"]).first
     }
 
     func installedCasks() -> [CaskMetadata] {

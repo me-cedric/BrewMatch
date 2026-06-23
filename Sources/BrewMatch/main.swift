@@ -9,15 +9,30 @@ enum BrewMatchCLI {
             return
         }
 
-        let roots = [
+        var roots = [
             URL(fileURLWithPath: "/Applications"),
             FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Applications"),
         ]
+        if options.includeSystem {
+            roots.append(URL(fileURLWithPath: "/System/Applications"))
+        }
+
+        let brew = LocalBrewClient()
+        let exporter = Exporter()
+
+        if options.command == "doctor" {
+            let report = Doctor().run(brew: brew, options: DoctorOptions(ignoreFile: options.ignoreFile))
+            let content = options.json ? try DoctorRenderer().json(report) : DoctorRenderer().text(report)
+            if let output = options.output {
+                try exporter.write(content, to: output, force: options.force)
+            } else {
+                print(content, terminator: "")
+            }
+            return
+        }
 
         let ignoreList = try IgnoreList.load(from: options.ignoreFile)
-        let brew = LocalBrewClient()
         let result = Reporter().build(apps: AppScanner().scan(roots: roots), brew: brew, ignoreList: ignoreList)
-        let exporter = Exporter()
 
         if options.command == "plan" || options.command == "adopt" {
             let plan = MigrationPlanner().build(result, options: MigrationPlanOptions(
@@ -42,6 +57,7 @@ enum BrewMatchCLI {
                         json: options.json,
                         strict: options.strict,
                         explain: options.explain,
+                        withCommands: options.withCommands,
                         systemChangeAcknowledged: options.systemChangeAcknowledged,
                         requireCleanPlan: options.requireCleanPlan,
                         interactionRequired: prompt.required,
@@ -93,14 +109,14 @@ enum BrewMatchCLI {
 
         if let output = options.output {
             let format = try exporter.format(for: output)
-            try exporter.write(try exporter.render(result, format: format), to: output, force: options.force)
+            try exporter.write(try exporter.render(result, format: format, explain: options.explain), to: output, force: options.force)
             return
         }
 
         if options.json {
             print(try Reporter().json(result))
         } else {
-            print(Reporter().text(result))
+            print(Reporter().text(result, explain: options.explain))
         }
     }
 
@@ -130,7 +146,7 @@ enum CLIError: Error, CustomStringConvertible, Equatable {
     var description: String {
         switch self {
         case .usage:
-            return "Usage: brewmatch --version\n       brewmatch version\n       brewmatch scan [--json] [--output <path>] [--force] [--ignore-file <path>]\n       brewmatch report [--output <path>] [--force] [--ignore-file <path>]\n       brewmatch brewfile [--include-medium] [--include-low] [--include-ambiguous] [--with-comments] [--no-header] [--output <path>] [--force] [--ignore-file <path>]\n       brewmatch suggestions [brewfile options]\n       brewmatch plan [--json] [--strict] [--explain] [--include-medium] [--include-low] [--include-ambiguous] [--with-commands] [--output <path>] [--force] [--ignore-file <path>]\n       brewmatch adopt [--cask <token>] [--app <name-or-bundle-id>] [--dry-run] [--execute] [--confirm <phrase>] [--i-understand-this-may-change-my-system] [--require-clean-plan] [--audit-log <path>] [--json] [--strict] [--explain] [--output <path>] [--force] [--ignore-file <path>]"
+            return "Usage: brewmatch --version\n       brewmatch version\n       brewmatch doctor [--json] [--output <path>] [--force] [--ignore-file <path>]\n       brewmatch scan [--json] [--include-system] [--output <path>] [--force] [--ignore-file <path>]\n       brewmatch report [--explain] [--output <path>] [--force] [--ignore-file <path>]\n       brewmatch brewfile [--include-medium] [--include-low] [--include-ambiguous] [--with-comments] [--no-header] [--output <path>] [--force] [--ignore-file <path>]\n       brewmatch suggestions [brewfile options]\n       brewmatch plan [--json] [--strict] [--explain] [--include-medium] [--include-low] [--include-ambiguous] [--with-commands] [--output <path>] [--force] [--ignore-file <path>]\n       brewmatch adopt [--cask <token>] [--app <name-or-bundle-id>] [--dry-run] [--execute] [--confirm <phrase>] [--i-understand-this-may-change-my-system] [--require-clean-plan] [--audit-log <path>] [--json] [--strict] [--explain] [--with-commands] [--output <path>] [--force] [--ignore-file <path>]"
         case .missingValue(let flag):
             return "Missing value for \(flag)."
         case .unsupportedOutputExtension(let ext):

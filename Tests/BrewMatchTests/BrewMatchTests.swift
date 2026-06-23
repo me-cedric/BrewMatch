@@ -279,6 +279,11 @@ import Testing
     #expect(options.withComments)
 }
 
+@Test func scanIncludeSystemOptionParses() throws {
+    let options = try CLIOptions.parse(["scan", "--include-system"])
+    #expect(options.includeSystem)
+}
+
 @Test func versionProviderAndOptions() throws {
     #expect(BrewMatchVersion.value == "0.3.0")
     #expect(BrewMatchVersion.display == "BrewMatch 0.3.0")
@@ -336,6 +341,20 @@ import Testing
     let text = MigrationPlanRenderer().text(plan)
     #expect(text.contains("No actions will be executed."))
     #expect(text.contains("command: brew install --cask --adopt firefox"))
+}
+
+@Test func planCopyableCommandsIncludeOnlyLowRiskProposedCommands() {
+    let plan = adoptPlan()
+    let text = MigrationPlanRenderer().text(plan)
+    let copyable = copyableSection(in: text)
+    #expect(copyable.contains("brew install --cask --adopt firefox"))
+    #expect(!copyable.contains("brew install --cask --adopt token"))
+    #expect(!copyable.contains("cursor-editor"))
+}
+
+@Test func planDoesNotShowCopyableCommandsWithoutWithCommands() {
+    let plan = MigrationPlanner().build(brewfileResult(), options: MigrationPlanOptions())
+    #expect(!MigrationPlanRenderer().text(plan).contains("Copyable commands:"))
 }
 
 @Test func planDefaultDoesNotRenderExecutableCommand() {
@@ -605,6 +624,123 @@ import Testing
     #expect(response.exitCode == 0)
 }
 
+@Test func adoptCopyableCommandsIncludeOnlyLowRiskProposedCommands() {
+    let response = AdoptCoordinator().run(
+        plan: adoptPlan(),
+        options: AdoptOptions(withCommands: true),
+        preflight: MockPreflightChecker.passing(),
+        executor: MockBrewExecutor()
+    )
+    let text = AdoptRenderer().text(response)
+    let copyable = copyableSection(in: text)
+    #expect(copyable.contains("brew install --cask --adopt firefox"))
+    #expect(!copyable.contains("brew install --cask --adopt token"))
+    #expect(!copyable.contains("cursor-editor"))
+}
+
+@Test func adoptDoesNotShowCopyableCommandsWithoutWithCommands() {
+    let response = AdoptCoordinator().run(
+        plan: adoptPlan(),
+        options: AdoptOptions(),
+        preflight: MockPreflightChecker.passing(),
+        executor: MockBrewExecutor()
+    )
+    #expect(!AdoptRenderer().text(response).contains("Copyable commands:"))
+}
+
+@Test func reportExplainIncludesMatchReasons() {
+    let text = Reporter().text(brewfileResult(), explain: true)
+    #expect(text.contains("reason: exact bundle identifier match"))
+    #expect(text.contains("candidates: firefox: exact bundle identifier match"))
+}
+
+@Test func includeSystemKeepsSystemAppsSkipped() {
+    let result = Reporter().build(
+        apps: [app("Safari.app", system: true)],
+        brew: MockBrewClient()
+    )
+    #expect(result.reports.first?.status == .skippedSystem)
+    #expect(result.summary.systemSkipped == 1)
+    #expect(try! Reporter().json(result).contains("\"skippedSystem\""))
+}
+
+@Test func doctorJSONContainsVersionGeneratedChecksAndSummary() throws {
+    let root = try temporaryDirectory()
+    let apps = root.appendingPathComponent("Applications")
+    try FileManager.default.createDirectory(at: apps, withIntermediateDirectories: true)
+    let report = Doctor().run(
+        brew: MockBrewClient(executable: "/opt/homebrew/bin/brew", versionString: "Homebrew 4.0.0", byToken: ["fixture": CaskMetadata(token: "fixture")]),
+        options: DoctorOptions(
+            ignoreFile: root.appendingPathComponent("missing-ignore.json"),
+            applicationsRoot: apps,
+            userApplicationsRoot: root.appendingPathComponent("UserApplications"),
+            temporaryDirectory: root,
+            knownCask: "fixture"
+        ),
+        generatedAt: Date(timeIntervalSince1970: 0)
+    )
+    let json = try DoctorRenderer().json(report)
+    #expect(json.contains("\"version\" : \"0.3.0\""))
+    #expect(json.contains("\"generatedAt\""))
+    #expect(json.contains("\"checks\""))
+    #expect(json.contains("\"summary\""))
+}
+
+@Test func doctorHandlesMissingBrewWithoutCrash() throws {
+    let root = try temporaryDirectory()
+    let report = Doctor().run(
+        brew: MockBrewClient(isAvailable: false),
+        options: DoctorOptions(ignoreFile: root.appendingPathComponent("ignore.json"), applicationsRoot: root, userApplicationsRoot: root, temporaryDirectory: root)
+    )
+    #expect(report.summary.warnings > 0)
+    #expect(report.warnings.contains { $0.contains("Homebrew not found") })
+}
+
+@Test func doctorHandlesMissingIgnoreFile() throws {
+    let root = try temporaryDirectory()
+    let report = Doctor().run(
+        brew: MockBrewClient(),
+        options: DoctorOptions(ignoreFile: root.appendingPathComponent("missing.json"), applicationsRoot: root, userApplicationsRoot: root, temporaryDirectory: root)
+    )
+    #expect(report.checks.contains { $0.name == "ignore file" && $0.status == .warn })
+}
+
+@Test func doctorHandlesMalformedIgnoreFile() throws {
+    let root = try temporaryDirectory()
+    let ignore = root.appendingPathComponent("ignore.json")
+    try "{ nope".write(to: ignore, atomically: true, encoding: .utf8)
+    let report = Doctor().run(
+        brew: MockBrewClient(),
+        options: DoctorOptions(ignoreFile: ignore, applicationsRoot: root, userApplicationsRoot: root, temporaryDirectory: root)
+    )
+    #expect(report.checks.contains { $0.name == "ignore file" && $0.status == .fail })
+}
+
+@Test func doctorOutputOverwriteGuard() throws {
+    let root = try temporaryDirectory()
+    let output = root.appendingPathComponent("doctor.json")
+    try "{}".write(to: output, atomically: true, encoding: .utf8)
+    let report = Doctor().run(
+        brew: MockBrewClient(),
+        options: DoctorOptions(ignoreFile: root.appendingPathComponent("ignore.json"), applicationsRoot: root, userApplicationsRoot: root, temporaryDirectory: root)
+    )
+    do {
+        try Exporter().write(try DoctorRenderer().json(report), to: output, force: false)
+        Issue.record("Expected overwrite refusal")
+    } catch CLIError.outputExists(let path) {
+        #expect(path == output.path)
+    }
+}
+
+@Test func doctorPlainOutputIncludesRemediation() throws {
+    let root = try temporaryDirectory()
+    let report = Doctor().run(
+        brew: MockBrewClient(isAvailable: false),
+        options: DoctorOptions(ignoreFile: root.appendingPathComponent("ignore.json"), applicationsRoot: root, userApplicationsRoot: root, temporaryDirectory: root)
+    )
+    #expect(DoctorRenderer().text(report).contains("remediation:"))
+}
+
 @Test func adoptExecuteBlockedWithoutSystemChangeFlag() {
     let executor = MockBrewExecutor()
     let response = AdoptCoordinator().run(
@@ -782,12 +918,16 @@ import Testing
 
 private struct MockBrewClient: BrewClient {
     var isAvailable: Bool = true
+    var executable: String?
+    var versionString: String?
     var warningList: [String] = []
     var installed: [CaskMetadata] = []
     var available: [CaskMetadata] = []
     var byToken: [String: CaskMetadata] = [:]
 
+    var executablePath: String? { executable }
     func warnings() -> [String] { warningList }
+    func version() -> String? { versionString }
     func installedCasks() -> [CaskMetadata] { installed }
     func availableCasks() -> [CaskMetadata] { available }
     func metadata(for token: String) -> CaskMetadata? { byToken[token] }
@@ -924,6 +1064,11 @@ private func emptySummary(_ total: Int) -> ReportSummary {
 
 private func occurrences(of needle: String, in haystack: String) -> Int {
     haystack.components(separatedBy: needle).count - 1
+}
+
+private func copyableSection(in text: String) -> String {
+    guard let tail = text.components(separatedBy: "Copyable commands:\n").dropFirst().first else { return "" }
+    return tail.components(separatedBy: "\n\n").first ?? tail
 }
 
 private func temporaryDirectory() throws -> URL {
